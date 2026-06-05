@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Red Tag Store - Smart Stock Balance (Grouped by Item)</title>
+    <title>Red Tag Store - Smart Stock Balance (Semantic Grouping)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -114,6 +114,7 @@
             margin-bottom: 20px;
             border-bottom: 2px solid #e2edf2;
             padding-bottom: 10px;
+            flex-wrap: wrap;
         }
 
         .tab-btn {
@@ -303,6 +304,15 @@
             color: #c24438;
         }
 
+        .group-badge {
+            background: #e8eaf6;
+            color: #3949ab;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -341,6 +351,12 @@
             color: #6c8e9e;
         }
 
+        .original-names {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 4px;
+        }
+
         @media (max-width: 768px) {
             th, td { font-size: 0.72rem; padding: 8px 6px; }
             .photo-thumb { width: 35px; height: 35px; }
@@ -352,26 +368,23 @@
     <div class="header">
         <div>
             <h1><i class="fas fa-boxes"></i> Red Tag Store · Smart Stock Balance</h1>
-            <div class="last-updated" id="lastUpdated">🔄 Grouping similar items...</div>
+            <div class="last-updated" id="lastUpdated">🔄 Grouping similar items by meaning...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 
-    <!-- KPI Cards -->
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Items In Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-box-open"></i></div><div class="kpi-info"><h3>Unique Item Types</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-object-group"></i></div><div class="kpi-info"><h3>Unique Types</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-palette"></i></div><div class="kpi-info"><h3>Colors Tracked</h3><div class="kpi-number" id="colorCount">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
-    <!-- Alert Panel -->
     <div class="alert-panel" id="alertPanel" style="display: none;">
         <div><i class="fas fa-bell"></i> <span class="alert-title">⚠️ Low Stock Alert</span> - Items below reorder level</div>
         <div class="alert-count" id="alertCount">0</div>
     </div>
 
-    <!-- Tabs -->
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('stock')">📊 Stock Balance (Grouped)</button>
         <button class="tab-btn" onclick="switchTab('transactions')">📋 Transaction History</button>
@@ -396,7 +409,7 @@
             <table id="stockTable">
                 <thead>
                     <tr>
-                        <th>Item Name / Type</th>
+                        <th>Item Type</th>
                         <th>Category</th>
                         <th>Current Stock</th>
                         <th>Colors Available</th>
@@ -409,7 +422,11 @@
                 <tbody id="stockTableBody">
                     <tr><td colspan="8" class="loading-placeholder">Loading stock data...</td></tr>
                 </tbody>
-            </table>
+             </table>
+        </div>
+        <div style="font-size:11px; color:#888; margin-top:10px; text-align:center;">
+            📌 <strong>Smart Grouping:</strong> "Rack", "Beam rack", "Pallet rack" → all grouped as <strong>"Rack"</strong><br>
+            🔹 <strong>Ungrouped items</strong> (not in rules) appear with their original names
         </div>
     </div>
 
@@ -430,13 +447,13 @@
             <table id="transactionTable">
                 <thead>
                     <tr>
-                        <th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Category</th><th>Photo</th>
+                        <th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Original Item Name</th><th>Grouped As</th><th>Qty</th><th>Color</th><th>Category</th><th>Photo</th>
                     </tr>
                 </thead>
                 <tbody id="transactionTableBody">
-                    <tr><td colspan="9" class="loading-placeholder">Loading transactions...</td></tr>
+                    <tr><td colspan="10" class="loading-placeholder">Loading transactions...</td></tr>
                 </tbody>
-            </table>
+             </table>
         </div>
     </div>
 
@@ -469,10 +486,71 @@
     let stockBalance = [];
     let categoryChart, monthlyChart, topItemsChart;
 
-    // Helper: Normalize item name for grouping (case-insensitive, trim)
-    function normalizeItemName(name) {
-        if (!name) return '';
-        return name.trim().toLowerCase();
+    // ============================================================
+    // SEMANTIC GROUPING RULES
+    // ============================================================
+    const GROUPING_RULES = {
+        // Rack and all rack-related items
+        "Rack": ["rack", "beam rack", "pallet rack", "step beam", "key beam", "beam", "pallet rack step beams", "beam rack", "karakuri"],
+        
+        // Tables
+        "Table": ["table", "operator table", "work table", "desk"],
+        
+        // Chairs/Seating
+        "Chair": ["chair", "kerusi", "seat"],
+        
+        // Cabinets/Storage
+        "Cabinet": ["cabinet", "cupboard", "storage box"],
+        
+        // Spanners/Wrenches
+        "Spanner": ["spanner", "spanar", "wrench"],
+        
+        // Clamps
+        "Clamp": ["clamp", "toggle clamp", "wise clamp"],
+        
+        // Valves
+        "Valve": ["valve", "ball valve", "solenoid valve", "hand lever valve", "solenoid"],
+        
+        // Electrical - Adapters
+        "Adapter": ["adapter", "ac/dc adapter", "power supply"],
+        
+        // Electrical - Switches
+        "Switch": ["switch", "push button", "stop push button", "selector switch"],
+        
+        // Jigs & Fixtures
+        "Jig & Fixture": ["jig", "fixture", "component fixture", "sub component fixture"],
+        
+        // Gauges/Measuring tools
+        "Gauge": ["gauge", "drill point gauge", "measuring tool"],
+        
+        // Hoses & Tubing
+        "Hose": ["hose", "air hose", "vacuum hose", "pu tubing"],
+        
+        // Paint & Markers
+        "Paint/Marker": ["paint", "marker", "spray", "paint marker"],
+        
+        // Files & Documents
+        "File/Document": ["file", "document", "folder", "box file", "file divider"]
+    };
+
+    // IMPORTANT: Function returns the group name OR the original name if no match
+    function getGroupName(itemName) {
+        if (!itemName) return "Unknown";
+        
+        const lowerName = itemName.toLowerCase();
+        
+        // Check each group's keywords
+        for (const [groupName, keywords] of Object.entries(GROUPING_RULES)) {
+            for (const keyword of keywords) {
+                if (lowerName.includes(keyword)) {
+                    return groupName;
+                }
+            }
+        }
+        
+        // NO MATCH FOUND - return the ORIGINAL name (NOT forced into any group)
+        // This ensures random names stay as themselves
+        return itemName.trim();
     }
 
     // Convert Google Drive links to direct images
@@ -503,7 +581,7 @@
         return result;
     }
 
-    // Parse CSV to transactions (with color extraction)
+    // Parse CSV to transactions
     function parseCSVToTransactions(csvText) {
         const lines = csvText.split(/\r?\n/);
         if (lines.length < 2) return [];
@@ -537,13 +615,14 @@
             }
             
             if (type && qty > 0) {
+                const groupName = getGroupName(type);
                 transactions.push({
                     timestamp: timestamp,
                     name: name,
                     department: dept,
                     action: action,
                     type: type,
-                    normalizedType: normalizeItemName(type),
+                    groupName: groupName,
                     qty: qty,
                     photoRaw: photo,
                     photoUrl: convertToDirectImageUrl(photo),
@@ -555,27 +634,30 @@
         return transactions;
     }
 
-    // Calculate stock balance with grouping by normalized name
+    // Calculate stock balance using grouped names
     function calculateStockBalance(transactions) {
-        const stockMap = new Map(); // key = normalized name
+        const stockMap = new Map(); // key = groupName
         
         for (const t of transactions) {
-            const key = t.normalizedType;
+            const key = t.groupName;
             const existing = stockMap.get(key) || {
-                displayName: t.type,  // Keep original display name
+                groupName: t.groupName,
                 category: t.category,
                 totalIn: 0,
                 totalOut: 0,
                 balance: 0,
-                colors: new Set(),     // Track unique colors
+                colors: new Set(),
+                originalNames: new Set(),
                 lastPhoto: null,
                 lastTimestamp: null
             };
             
+            existing.originalNames.add(t.type);
+            
             if (t.action === 'IN') {
                 existing.totalIn += t.qty;
                 existing.balance += t.qty;
-                if (t.color && t.color !== "N/A" && t.color !== "-") {
+                if (t.color && t.color !== "N/A" && t.color !== "-" && t.color !== "") {
                     existing.colors.add(t.color);
                 }
                 if (t.photoUrl && !existing.lastPhoto) {
@@ -604,7 +686,7 @@
 
     // Load from Google Sheets
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading and grouping items...</td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading data...<br>📌 Items NOT in grouping rules keep their original names</td></tr>';
         
         allTransactions = [];
         
@@ -637,7 +719,7 @@
         allTransactions = Array.from(uniqueMap.values());
         allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Calculate stock balance (grouped by normalized name)
+        // Calculate stock balance
         stockBalance = calculateStockBalance(allTransactions);
         
         // Update KPIs
@@ -645,7 +727,6 @@
         const lowStockItems = stockBalance.filter(item => item.balance <= 10);
         const criticalItems = stockBalance.filter(item => item.balance < 5);
         
-        // Count unique colors across all items
         const allColors = new Set();
         stockBalance.forEach(item => {
             item.colors.forEach(c => allColors.add(c));
@@ -656,7 +737,6 @@
         document.getElementById('colorCount').innerHTML = `<span style="color:#8e44ad">${allColors.size}</span> unique`;
         document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowStockItems.length}</span> / ${criticalItems.length} critical`;
         
-        // Show alert panel
         const alertPanel = document.getElementById('alertPanel');
         if (lowStockItems.length > 0) {
             alertPanel.style.display = 'flex';
@@ -665,7 +745,7 @@
             alertPanel.style.display = 'none';
         }
         
-        document.getElementById('lastUpdated').innerHTML = `✅ Last updated: ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${stockBalance.length} unique item types (grouped)`;
+        document.getElementById('lastUpdated').innerHTML = `✅ Last updated: ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${stockBalance.length} unique types`;
         
         renderStockTable(stockBalance);
         renderTransactionTable(allTransactions);
@@ -673,14 +753,13 @@
         renderCharts();
     }
     
-    // Helper to get color CSS
     function getColorStyle(colorName) {
         const colorMap = {
             'red': '#e74c3c', 'blue': '#3498db', 'green': '#2ecc71', 
             'yellow': '#f1c40f', 'black': '#2c3e50', 'white': '#ecf0f1',
             'silver': '#bdc3c7', 'grey': '#95a5a6', 'orange': '#e67e22',
             'pink': '#fd79a8', 'purple': '#9b59b6', 'brown': '#8B4513',
-            'royal ivory': '#fdf5e6', 'ivory': '#fffff0'
+            'royal ivory': '#fdf5e6', 'ivory': '#fffff0', 'oren': '#e67e22'
         };
         const lowerColor = colorName.toLowerCase();
         for (let [key, value] of Object.entries(colorMap)) {
@@ -700,17 +779,21 @@
         
         for (let item of items) {
             const row = tbody.insertRow();
-            row.insertCell(0).innerText = item.displayName;
+            
+            const nameCell = row.insertCell(0);
+            const isGrouped = item.originalNames.size > 1;
+            const originalList = Array.from(item.originalNames).slice(0, 3).join(', ');
+            const moreCount = item.originalNames.size > 3 ? ` +${item.originalNames.size - 3} more` : '';
+            nameCell.innerHTML = `<strong>${item.groupName}</strong>${isGrouped ? `<div class="original-names">📝 Includes: ${originalList}${moreCount}</div>` : ''}`;
+            
             row.insertCell(1).innerText = item.category;
             
-            // Stock quantity with badge
             const stockCell = row.insertCell(2);
             let stockClass = 'stock-high';
             if (item.balance <= 5) stockClass = 'stock-low';
             else if (item.balance <= 10) stockClass = 'stock-medium';
             stockCell.innerHTML = `<span class="stock-badge ${stockClass}">${item.balance}</span>`;
             
-            // Colors cell - show color dots and names
             const colorCell = row.insertCell(3);
             if (item.colors.size > 0) {
                 const colorArray = Array.from(item.colors);
@@ -725,7 +808,6 @@
             row.insertCell(4).innerText = item.totalIn;
             row.insertCell(5).innerText = item.totalOut;
             
-            // Status
             const statusCell = row.insertCell(6);
             let statusText = '', statusColor = '';
             if (item.balance <= 0) { statusText = '⚠️ OUT OF STOCK'; statusColor = '#e74c3c'; }
@@ -734,7 +816,6 @@
             else { statusText = '✅ IN STOCK'; statusColor = '#1e6f5c'; }
             statusCell.innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
             
-            // Photo
             const photoCell = row.insertCell(7);
             if (item.lastPhoto) {
                 photoCell.innerHTML = `<img class="photo-thumb" src="${item.lastPhoto}" onclick="showModalImage('${item.lastPhoto}')" onerror="this.style.display='none'">`;
@@ -757,19 +838,23 @@
             row.insertCell(2).innerText = t.department || '-';
             row.insertCell(3).innerHTML = `<span class="badge-action ${t.action === 'IN' ? 'badge-in' : 'badge-out'}">${t.action}</span>`;
             row.insertCell(4).innerText = t.type.length > 25 ? t.type.substring(0, 22) + '...' : t.type;
-            row.insertCell(5).innerText = t.qty;
             
-            // Color cell with dot
-            const colorCell = row.insertCell(6);
+            // Show if grouped or original
+            const isGrouped = t.groupName !== t.type;
+            row.insertCell(5).innerHTML = isGrouped ? `<span class="group-badge">${t.groupName}</span>` : `<span style="color:#888">(same)</span>`;
+            
+            row.insertCell(6).innerText = t.qty;
+            
+            const colorCell = row.insertCell(7);
             if (t.color && t.color !== "N/A") {
                 colorCell.innerHTML = `<span class="color-tag"><span class="color-dot" style="background: ${getColorStyle(t.color)}"></span>${t.color}</span>`;
             } else {
                 colorCell.innerHTML = '—';
             }
             
-            row.insertCell(7).innerText = t.category;
+            row.insertCell(8).innerText = t.category;
             
-            const photoCell = row.insertCell(8);
+            const photoCell = row.insertCell(9);
             if (t.action === 'IN' && t.photoUrl) {
                 photoCell.innerHTML = `<img class="photo-thumb" src="${t.photoUrl}" onclick="showModalImage('${t.photoUrl}')" onerror="this.style.display='none'">`;
             } else {
@@ -799,7 +884,7 @@
         
         let filtered = stockBalance.filter(item => {
             if (category !== 'ALL' && item.category !== category) return false;
-            if (searchTerm && !item.displayName.toLowerCase().includes(searchTerm)) return false;
+            if (searchTerm && !item.groupName.toLowerCase().includes(searchTerm)) return false;
             if (status === 'critical' && item.balance >= 5) return false;
             if (status === 'low' && (item.balance < 5 || item.balance > 10)) return false;
             if (status === 'normal' && item.balance <= 10) return false;
@@ -817,7 +902,7 @@
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (category !== 'ALL' && t.category !== category) return false;
-            if (searchTerm && !t.type.toLowerCase().includes(searchTerm) && !t.name.toLowerCase().includes(searchTerm)) return false;
+            if (searchTerm && !t.type.toLowerCase().includes(searchTerm) && !t.groupName.toLowerCase().includes(searchTerm)) return false;
             return true;
         });
         
@@ -825,7 +910,6 @@
     }
     
     function renderCharts() {
-        // Category chart
         const catMap = new Map();
         stockBalance.forEach(item => {
             catMap.set(item.category, (catMap.get(item.category) || 0) + item.balance);
@@ -840,7 +924,6 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Monthly chart
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let date = new Date(t.timestamp);
@@ -868,13 +951,12 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Top 10 items
         const top10 = [...stockBalance].sort((a,b) => b.balance - a.balance).slice(0, 10);
         if (topItemsChart) topItemsChart.destroy();
         const topCtx = document.getElementById('topItemsChart').getContext('2d');
         topItemsChart = new Chart(topCtx, {
             type: 'bar',
-            data: { labels: top10.map(i => i.displayName.length > 15 ? i.displayName.substring(0,12)+'...' : i.displayName), datasets: [{ label: 'Current Stock', data: top10.map(i => i.balance), backgroundColor: '#e67e22', borderRadius: 8 }] },
+            data: { labels: top10.map(i => i.groupName.length > 15 ? i.groupName.substring(0,12)+'...' : i.groupName), datasets: [{ label: 'Current Stock', data: top10.map(i => i.balance), backgroundColor: '#e67e22', borderRadius: 8 }] },
             options: { responsive: true, maintainAspectRatio: true, indexAxis: 'y' }
         });
     }
