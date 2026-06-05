@@ -1,1 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Red Tag Store - Real-Time Inventory Stock Balance</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, 'Helvetica Neue', sans-serif;
+        }
 
+        body {
+            background: #f0f4f8;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 25px;
+            border-radius: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            color: #1e6f5c;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .refresh-btn {
+            background: #1e6f5c;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn:hover {
+            background: #0e5243;
+            transform: scale(0.97);
+        }
+
+        .last-updated {
+            color: #4a6272;
+            font-size: 0.8rem;
+            margin-top: 6px;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 20px;
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .kpi-icon {
+            width: 58px;
+            height: 58px;
+            background: #e0f2ef;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.9rem;
+            color: #1e6f5c;
+        }
+
+        .kpi-info h3 {
+            font-size: 0.8rem;
+            color: #597a8b;
+            margin-bottom: 6px;
+        }
+
+        .kpi-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a2c38;
+        }
+
+        .low-stock {
+            color: #e67e22;
+        }
+
+        .critical-stock {
+            color: #e74c3c;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2edf2;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 30px;
+            transition: 0.2s;
+            color: #597a8b;
+        }
+
+        .tab-btn.active {
+            background: #1e6f5c;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #e0f2ef;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Stock Alert Panel */
+        .alert-panel {
+            background: #fff8e7;
+            border-left: 4px solid #e67e22;
+            padding: 15px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .alert-title {
+            font-weight: 700;
+            color: #e67e22;
+        }
+
+        .alert-count {
+            background: #e67e22;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+        }
+
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 20px;
+            max-height: 550px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: #f4f9fc;
+            padding: 14px 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #1f5063;
+            border-bottom: 1px solid #e2edf2;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #ecf3f7;
+            vertical-align: middle;
+        }
+
+        .stock-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .stock-high {
+            background: #dff0ec;
+            color: #1e6f5c;
+        }
+
+        .stock-medium {
+            background: #fff3e0;
+            color: #e67e22;
+        }
+
+        .stock-low {
+            background: #ffe6e5;
+            color: #c24438;
+        }
+
+        .photo-thumb {
+            width: 45px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+        }
+
+        .photo-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .filters {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filters select, .filters input {
+            padding: 10px 20px;
+            border-radius: 40px;
+            border: 1px solid #cfdfe9;
+            background: white;
+            font-size: 0.85rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 12px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 25px;
+            right: 35px;
+            font-size: 38px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .loading-placeholder {
+            text-align: center;
+            padding: 40px;
+            color: #6c8e9e;
+        }
+
+        @media (max-width: 768px) {
+            th, td { font-size: 0.72rem; padding: 8px 6px; }
+            .photo-thumb { width: 35px; height: 35px; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div>
+            <h1><i class="fas fa-boxes"></i> Red Tag Store · Real-Time Stock Balance</h1>
+            <div class="last-updated" id="lastUpdated">🔄 Calculating stock levels...</div>
+        </div>
+        <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh Stock</button>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Items In Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-box-open"></i></div><div class="kpi-info"><h3>Unique Item Types</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock Items</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-chart-line"></i></div><div class="kpi-info"><h3>Total IN - OUT</h3><div class="kpi-number" id="netFlow">—</div></div></div>
+    </div>
+
+    <!-- Stock Alert Panel -->
+    <div class="alert-panel" id="alertPanel" style="display: none;">
+        <div><i class="fas fa-bell"></i> <span class="alert-title">⚠️ Low Stock Alert</span> - Items below reorder level</div>
+        <div class="alert-count" id="alertCount">0</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('stock')">📊 Current Stock Balance</button>
+        <button class="tab-btn" onclick="switchTab('transactions')">📋 Transaction History</button>
+        <button class="tab-btn" onclick="switchTab('charts')">📈 Analytics</button>
+    </div>
+
+    <!-- Stock Balance Tab -->
+    <div id="stockTab" class="tab-content active">
+        <div class="filters">
+            <input type="text" id="stockSearch" placeholder="🔍 Search item name..." onkeyup="filterStockTable()">
+            <select id="stockCategoryFilter" onchange="filterStockTable()">
+                <option value="ALL">All Categories</option>
+            </select>
+            <select id="stockStatusFilter" onchange="filterStockTable()">
+                <option value="ALL">All Stock Status</option>
+                <option value="critical">⚠️ Critical (&lt;5)</option>
+                <option value="low">🟠 Low (5-10)</option>
+                <option value="normal">✅ Normal (&gt;10)</option>
+            </select>
+        </div>
+        <div class="table-wrapper">
+            <table id="stockTable">
+                <thead>
+                    <tr>
+                        <th>Item Name / Type</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Total IN</th>
+                        <th>Total OUT</th>
+                        <th>Status</th>
+                        <th>Last Photo</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                    <tr><td colspan="7" class="loading-placeholder">Loading stock data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Transaction History Tab -->
+    <div id="transactionsTab" class="tab-content">
+        <div class="filters">
+            <select id="actionFilter">
+                <option value="ALL">All Actions</option>
+                <option value="IN">IN Only</option>
+                <option value="OUT">OUT Only</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="🔍 Search by item, name..." onkeyup="filterTransactionTable()">
+            <select id="categoryFilter" onchange="filterTransactionTable()">
+                <option value="ALL">All Categories</option>
+            </select>
+        </div>
+        <div class="table-wrapper">
+            <table id="transactionTable">
+                <thead>
+                    <tr>
+                        <th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Category</th><th>Photo</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTableBody">
+                    <tr><td colspan="8" class="loading-placeholder">Loading transactions...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="chartsTab" class="tab-content">
+        <div class="chart-row" style="display: flex; flex-wrap: wrap; gap: 24px;">
+            <div class="chart-card" style="flex:1; background:white; padding:20px; border-radius:24px;">
+                <h3>📊 Stock by Category</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-card" style="flex:1; background:white; padding:20px; border-radius:24px;">
+                <h3>📆 Monthly Activity (IN/OUT)</h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-row" style="margin-top:24px;">
+            <div class="chart-card" style="flex:1; background:white; padding:20px; border-radius:24px;">
+                <h3>🏆 Top 10 Items by Stock Value</h3>
+                <canvas id="topItemsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="imageModal" class="modal" onclick="closeModal()">
+    <span class="close-modal">&times;</span>
+    <img id="modalImage" src="">
+</div>
+
+<script>
+    let allTransactions = [];
+    let stockBalance = new Map(); // Map of itemKey -> {name, category, totalIn, totalOut, balance, lastPhoto}
+    let categoryChart, monthlyChart, topItemsChart;
+    let currentTab = 'stock';
+
+    // ============================================================
+    // Convert Google Drive links to direct image URLs
+    // ============================================================
+    function convertToDirectImageUrl(url) {
+        if (!url || typeof url !== 'string') return null;
+        url = url.trim();
+        let match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w200`;
+        match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w200`;
+        if (url.includes('thumbnail?id=')) return url;
+        return null;
+    }
+
+    // ============================================================
+    // Calculate Real-Time Stock Balance
+    // ============================================================
+    function calculateStockBalance(transactions) {
+        const stockMap = new Map();
+        
+        for (const t of transactions) {
+            // Create a unique key for the item (normalize name)
+            const itemKey = t.type.trim().toLowerCase();
+            const existing = stockMap.get(itemKey) || {
+                name: t.type,
+                category: t.category,
+                totalIn: 0,
+                totalOut: 0,
+                balance: 0,
+                lastPhoto: null,
+                lastTimestamp: null
+            };
+            
+            if (t.action === 'IN') {
+                existing.totalIn += t.qty;
+                existing.balance += t.qty;
+                if (t.photoUrl && !existing.lastPhoto) {
+                    existing.lastPhoto = t.photoUrl;
+                }
+            } else if (t.action === 'OUT') {
+                existing.totalOut += t.qty;
+                existing.balance -= t.qty;
+            }
+            
+            // Update timestamp
+            if (!existing.lastTimestamp || new Date(t.timestamp) > new Date(existing.lastTimestamp)) {
+                existing.lastTimestamp = t.timestamp;
+                if (t.photoUrl) existing.lastPhoto = t.photoUrl;
+            }
+            
+            stockMap.set(itemKey, existing);
+        }
+        
+        // Filter out items with zero balance (optional - keep for history)
+        const nonZeroItems = Array.from(stockMap.values()).filter(item => item.balance !== 0);
+        return nonZeroItems.sort((a, b) => b.balance - a.balance);
+    }
+
+    // ============================================================
+    // Parse CSV data
+    // ============================================================
+    function parseCSVLine(line) {
+        const result = [];
+        let inQuotes = false;
+        let current = '';
+        for (let ch of line) {
+            if (ch === '"') inQuotes = !inQuotes;
+            else if (ch === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else current += ch;
+        }
+        result.push(current.trim());
+        return result;
+    }
+
+    function parseCSVToTransactions(csvText) {
+        const lines = csvText.split(/\r?\n/);
+        if (lines.length < 2) return [];
+        const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+        const transactions = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const row = parseCSVLine(lines[i]);
+            const record = {};
+            headers.forEach((h, idx) => { record[h] = row[idx] || ''; });
+            
+            let action = (record["Please select action"] || "").toUpperCase();
+            if (action !== "IN" && action !== "OUT") continue;
+            
+            let type = "", qty = 0, photo = "";
+            let category = record["Categories"] || record["categories"] || "Uncategorized";
+            let timestamp = record["Timestamp"] || "";
+            let name = record["Name"] || "";
+            let dept = record["Department"] || "";
+            
+            if (action === "IN") {
+                type = record["Types (IN)"] || "";
+                qty = parseFloat(record["Qty (IN)"]) || 0;
+                photo = record["Photo"] || "";
+            } else if (action === "OUT") {
+                type = record["Types (OUT)"] || "";
+                qty = parseFloat(record["Qty (OUT)"]) || 0;
+            }
+            
+            if (type && qty > 0) {
+                transactions.push({
+                    timestamp: timestamp,
+                    name: name,
+                    department: dept,
+                    action: action,
+                    type: type,
+                    qty: qty,
+                    photoRaw: photo,
+                    photoUrl: convertToDirectImageUrl(photo),
+                    category: category
+                });
+            }
+        }
+        return transactions;
+    }
+
+    // ============================================================
+    // Load data from Google Sheets
+    // ============================================================
+    async function loadAllData() {
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="7" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Calculating stock balance...</td></tr>';
+        
+        allTransactions = [];
+        
+        // Google Sheet CSV URLs (replace with your published URLs)
+        const SHEET1_URL = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
+        const SHEET2_URL = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
+        
+        try {
+            const response1 = await fetch(SHEET1_URL).catch(() => null);
+            if (response1 && response1.ok) {
+                const csv1 = await response1.text();
+                const parsed1 = parseCSVToTransactions(csv1);
+                allTransactions.push(...parsed1);
+            }
+            
+            const response2 = await fetch(SHEET2_URL).catch(() => null);
+            if (response2 && response2.ok) {
+                const csv2 = await response2.text();
+                const parsed2 = parseCSVToTransactions(csv2);
+                allTransactions.push(...parsed2);
+            }
+        } catch(e) {
+            console.error("Error fetching data:", e);
+        }
+        
+        // Remove duplicates
+        const uniqueMap = new Map();
+        for (let t of allTransactions) {
+            const key = `${t.timestamp}|${t.type}|${t.name}|${t.action}`;
+            if (!uniqueMap.has(key)) uniqueMap.set(key, t);
+        }
+        allTransactions = Array.from(uniqueMap.values());
+        allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        // Calculate stock balance
+        const stockItems = calculateStockBalance(allTransactions);
+        
+        document.getElementById('lastUpdated').innerHTML = `✅ Stock as of: ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${stockItems.length} active items`;
+        
+        // Update KPIs
+        const totalStockQty = stockItems.reduce((sum, item) => sum + item.balance, 0);
+        const lowStockItems = stockItems.filter(item => item.balance <= 10);
+        const criticalItems = stockItems.filter(item => item.balance < 5);
+        const totalIn = allTransactions.filter(t => t.action === 'IN').reduce((s, t) => s + t.qty, 0);
+        const totalOut = allTransactions.filter(t => t.action === 'OUT').reduce((s, t) => s + t.qty, 0);
+        
+        document.getElementById('totalStock').innerText = totalStockQty;
+        document.getElementById('uniqueItems').innerText = stockItems.length;
+        document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowStockItems.length}</span> / ${criticalItems.length} critical`;
+        document.getElementById('netFlow').innerText = totalIn - totalOut;
+        
+        // Show alert panel if low stock exists
+        const alertPanel = document.getElementById('alertPanel');
+        if (lowStockItems.length > 0) {
+            alertPanel.style.display = 'flex';
+            document.getElementById('alertCount').innerText = `${lowStockItems.length} items low (${criticalItems.length} critical)`;
+        } else {
+            alertPanel.style.display = 'none';
+        }
+        
+        // Render stock table
+        renderStockTable(stockItems);
+        renderTransactionTable(allTransactions);
+        
+        // Populate filters
+        populateFilters(stockItems);
+        
+        // Render charts
+        renderCharts(stockItems, allTransactions);
+    }
+    
+    function renderStockTable(stockItems) {
+        const tbody = document.getElementById('stockTableBody');
+        tbody.innerHTML = '';
+        
+        if (stockItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-placeholder">No stock data available</td></tr>';
+            return;
+        }
+        
+        for (let item of stockItems) {
+            const row = tbody.insertRow();
+            row.insertCell(0).innerText = item.name;
+            row.insertCell(1).innerText = item.category;
+            
+            // Stock quantity with color coding
+            const stockCell = row.insertCell(2);
+            let stockClass = 'stock-high';
+            if (item.balance <= 5) stockClass = 'stock-low';
+            else if (item.balance <= 10) stockClass = 'stock-medium';
+            stockCell.innerHTML = `<span class="stock-badge ${stockClass}">${item.balance}</span>`;
+            
+            row.insertCell(3).innerText = item.totalIn;
+            row.insertCell(4).innerText = item.totalOut;
+            
+            // Status
+            const statusCell = row.insertCell(5);
+            let statusText = '', statusColor = '';
+            if (item.balance <= 0) { statusText = '⚠️ OUT OF STOCK'; statusColor = '#e74c3c'; }
+            else if (item.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
+            else if (item.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
+            else { statusText = '✅ IN STOCK'; statusColor = '#1e6f5c'; }
+            statusCell.innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
+            
+            // Photo
+            const photoCell = row.insertCell(6);
+            if (item.lastPhoto) {
+                photoCell.innerHTML = `<img class="photo-thumb" src="${item.lastPhoto}" onclick="showModalImage('${item.lastPhoto}')" onerror="this.style.display='none'">`;
+            } else {
+                photoCell.innerHTML = '—';
+            }
+        }
+    }
+    
+    function renderTransactionTable(transactions) {
+        const tbody = document.getElementById('transactionTableBody');
+        tbody.innerHTML = '';
+        
+        const displayRows = transactions.slice(0, 200);
+        for (let t of displayRows) {
+            const row = tbody.insertRow();
+            let dateStr = t.timestamp ? t.timestamp.replace('T', ' ').substring(0, 16) : 'Unknown';
+            row.insertCell(0).innerText = dateStr;
+            row.insertCell(1).innerText = t.name || '-';
+            row.insertCell(2).innerText = t.department || '-';
+            row.insertCell(3).innerHTML = `<span class="badge-action ${t.action === 'IN' ? 'badge-in' : 'badge-out'}">${t.action}</span>`;
+            row.insertCell(4).innerText = t.type.length > 30 ? t.type.substring(0, 27) + '...' : t.type;
+            row.insertCell(5).innerText = t.qty;
+            row.insertCell(6).innerText = t.category;
+            
+            const photoCell = row.insertCell(7);
+            if (t.action === 'IN' && t.photoUrl) {
+                photoCell.innerHTML = `<img class="photo-thumb" src="${t.photoUrl}" onclick="showModalImage('${t.photoUrl}')" onerror="this.style.display='none'">`;
+            } else {
+                photoCell.innerHTML = '—';
+            }
+        }
+    }
+    
+    function populateFilters(stockItems) {
+        const categories = [...new Set(stockItems.map(i => i.category))].sort();
+        const catSelect = document.getElementById('stockCategoryFilter');
+        const transCatSelect = document.getElementById('categoryFilter');
+        
+        catSelect.innerHTML = '<option value="ALL">All Categories</option>';
+        transCatSelect.innerHTML = '<option value="ALL">All Categories</option>';
+        
+        categories.forEach(c => {
+            catSelect.innerHTML += `<option value="${c}">${c}</option>`;
+            transCatSelect.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+    }
+    
+    function filterStockTable() {
+        const searchTerm = document.getElementById('stockSearch').value.toLowerCase();
+        const category = document.getElementById('stockCategoryFilter').value;
+        const status = document.getElementById('stockStatusFilter').value;
+        
+        const stockItems = calculateStockBalance(allTransactions);
+        
+        let filtered = stockItems.filter(item => {
+            if (category !== 'ALL' && item.category !== category) return false;
+            if (searchTerm && !item.name.toLowerCase().includes(searchTerm)) return false;
+            if (status === 'critical' && item.balance >= 5) return false;
+            if (status === 'low' && (item.balance < 5 || item.balance > 10)) return false;
+            if (status === 'normal' && item.balance <= 10) return false;
+            return true;
+        });
+        
+        renderStockTable(filtered);
+    }
+    
+    function filterTransactionTable() {
+        const action = document.getElementById('actionFilter').value;
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const category = document.getElementById('categoryFilter').value;
+        
+        let filtered = allTransactions.filter(t => {
+            if (action !== 'ALL' && t.action !== action) return false;
+            if (category !== 'ALL' && t.category !== category) return false;
+            if (searchTerm && !t.type.toLowerCase().includes(searchTerm) && !t.name.toLowerCase().includes(searchTerm)) return false;
+            return true;
+        });
+        
+        renderTransactionTable(filtered);
+    }
+    
+    function renderCharts(stockItems, transactions) {
+        // Category chart (stock by category)
+        const catMap = new Map();
+        stockItems.forEach(item => {
+            catMap.set(item.category, (catMap.get(item.category) || 0) + item.balance);
+        });
+        const sortedCats = Array.from(catMap.entries()).sort((a,b) => b[1] - a[1]);
+        
+        if (categoryChart) categoryChart.destroy();
+        const catCtx = document.getElementById('categoryChart').getContext('2d');
+        categoryChart = new Chart(catCtx, {
+            type: 'bar',
+            data: { labels: sortedCats.map(c => c[0]), datasets: [{ label: 'Current Stock', data: sortedCats.map(c => c[1]), backgroundColor: '#289672', borderRadius: 8 }] },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+        
+        // Monthly activity
+        const monthMap = new Map();
+        transactions.forEach(t => {
+            let date = new Date(t.timestamp);
+            if (!isNaN(date)) {
+                const ym = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}`;
+                const current = monthMap.get(ym) || { in: 0, out: 0 };
+                if (t.action === 'IN') current.in += t.qty;
+                else current.out += t.qty;
+                monthMap.set(ym, current);
+            }
+        });
+        const months = Array.from(monthMap.keys()).sort();
+        
+        if (monthlyChart) monthlyChart.destroy();
+        const monthCtx = document.getElementById('monthlyChart').getContext('2d');
+        monthlyChart = new Chart(monthCtx, {
+            type: 'line',
+            data: { 
+                labels: months, 
+                datasets: [
+                    { label: 'IN Quantity', data: months.map(m => monthMap.get(m).in), borderColor: '#289672', backgroundColor: 'rgba(40,150,114,0.1)', fill: true },
+                    { label: 'OUT Quantity', data: months.map(m => monthMap.get(m).out), borderColor: '#e74c3c', backgroundColor: 'rgba(231,76,60,0.1)', fill: true }
+                ] 
+            },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+        
+        // Top 10 items
+        const top10 = [...stockItems].sort((a,b) => b.balance - a.balance).slice(0, 10);
+        if (topItemsChart) topItemsChart.destroy();
+        const topCtx = document.getElementById('topItemsChart').getContext('2d');
+        topItemsChart = new Chart(topCtx, {
+            type: 'bar',
+            data: { labels: top10.map(i => i.name.length > 15 ? i.name.substring(0,12)+'...' : i.name), datasets: [{ label: 'Current Stock', data: top10.map(i => i.balance), backgroundColor: '#e67e22', borderRadius: 8 }] },
+            options: { responsive: true, maintainAspectRatio: true, indexAxis: 'y' }
+        });
+    }
+    
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('stockTab').classList.remove('active');
+        document.getElementById('transactionsTab').classList.remove('active');
+        document.getElementById('chartsTab').classList.remove('active');
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        
+        if (tab === 'stock') {
+            document.getElementById('stockTab').classList.add('active');
+            document.querySelector('.tab-btn:first-child').classList.add('active');
+            filterStockTable();
+        } else if (tab === 'transactions') {
+            document.getElementById('transactionsTab').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+            filterTransactionTable();
+        } else if (tab === 'charts') {
+            document.getElementById('chartsTab').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+            const stockItems = calculateStockBalance(allTransactions);
+            renderCharts(stockItems, allTransactions);
+        }
+    }
+    
+    window.showModalImage = function(url) {
+        const modal = document.getElementById('imageModal');
+        document.getElementById('modalImage').src = url;
+        modal.classList.add('show');
+    };
+    
+    window.closeModal = function() {
+        document.getElementById('imageModal').classList.remove('show');
+    };
+    
+    // Load on page load
+    loadAllData();
+</script>
+</body>
+</html>
