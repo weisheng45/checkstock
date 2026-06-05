@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* (Your existing CSS – unchanged) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background: #f0f4f8; padding: 20px; }
         .dashboard { max-width: 1600px; margin: 0 auto; }
@@ -108,6 +109,7 @@
             🧠 <strong>Semantic grouping (edit the GROUPS object to add your own)</strong><br>
             • "Rack", "Beam rack", "Pallet rack", "Shelf" → all become <strong>Rack / Shelf</strong> → balance = IN - OUT<br>
             • "Spanner", "Wrench", "Spanar" → all become <strong>Spanner / Wrench</strong><br>
+            • "Magnetic strips", "magnetic colour strip", "Magnetic color strip" → all become <strong>Magnetic Strip</strong><br>
             • Items not in any group keep their original name (no forced grouping)
         </div>
     </div>
@@ -141,8 +143,8 @@
 
 <script>
     // ============================================================
-    // 1. DEFINE YOUR SEMANTIC GROUPS (same meaning = same group)
-    //    Add or remove as you like. Items not listed keep original name.
+    // 1. SEMANTIC GROUPS (case‑insensitive matching)
+    //    All keywords are automatically lowercased during matching.
     // ============================================================
     const GROUPS = {
         "Rack / Shelf": ["rack", "beam rack", "pallet rack", "shelf", "step beam", "key beam", "shelving", "book rack", "beam"],
@@ -162,16 +164,20 @@
         "Table / Desk": ["table", "desk", "operator table", "workbench", "work table"],
         "Chair / Seat": ["chair", "kerusi", "stool", "seat"],
         "Stationery": ["stapler", "puncher", "needle", "tape", "file", "folder", "marker", "calculator", "calendar", "binder"],
-         "magnetic_strip": ["Magnetic strips", "magnetic colour strip", "Magnetic color strip"],
+        // FIXED: Magnetic strip group – readable name and case‑insensitive keywords
+        "Magnetic Strip": ["magnetic strips", "magnetic colour strip", "magnetic color strip", "magnetic strip"]
     };
 
-    // Helper: get group name for a given item (returns original name if no match)
+    // Helper: get group name (case‑insensitive)
     function getGroupName(itemName) {
         if (!itemName) return "Unknown";
-        const lower = itemName.toLowerCase();
+        const lowerItem = itemName.toLowerCase();
         for (const [group, keywords] of Object.entries(GROUPS)) {
             for (const kw of keywords) {
-                if (lower.includes(kw)) return group;
+                // Compare lowercased keyword with lowercased item name
+                if (lowerItem.includes(kw.toLowerCase())) {
+                    return group;
+                }
             }
         }
         return itemName.trim(); // no match → keep original
@@ -180,12 +186,12 @@
     // ============================================================
     // 2. GLOBAL DATA
     // ============================================================
-    let allTransactions = [];    // raw transactions with group assigned
-    let stockBalance = [];       // aggregated per group
+    let allTransactions = [];
+    let stockBalance = [];
     let categoryChart, monthlyChart, topItemsChart;
 
     // ============================================================
-    // 3. HELPER FUNCTIONS
+    // 3. HELPER FUNCTIONS (unchanged)
     // ============================================================
     function convertDriveToImage(url) {
         if (!url || typeof url !== 'string') return null;
@@ -254,7 +260,6 @@
         return transactions;
     }
 
-    // Calculate stock balance per group (IN - OUT)
     function computeStockBalance(transactions) {
         const map = new Map();
         for (const t of transactions) {
@@ -286,12 +291,11 @@
             }
             map.set(key, existing);
         }
-        // Keep only items with non-zero balance (optional, you can keep zero too)
         return Array.from(map.values()).filter(item => item.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
     // ============================================================
-    // 4. FETCH DATA FROM GOOGLE SHEETS (CSV)
+    // 4. FETCH DATA
     // ============================================================
     async function loadAllData() {
         document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...</td></tr>';
@@ -304,7 +308,6 @@
             if (resp2 && resp2.ok) allTransactions.push(...parseCSVToTransactions(await resp2.text()));
         } catch(e) { console.error("Fetch error:", e); }
         
-        // Remove exact duplicates (same timestamp, type, name, action, qty)
         const unique = new Map();
         for (const t of allTransactions) {
             const key = `${t.timestamp}|${t.originalType}|${t.name}|${t.action}|${t.qty}`;
@@ -313,10 +316,8 @@
         allTransactions = Array.from(unique.values());
         allTransactions.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        // Compute stock balance
         stockBalance = computeStockBalance(allTransactions);
         
-        // Update KPIs
         const totalStock = stockBalance.reduce((s,i) => s + i.balance, 0);
         const lowStockItems = stockBalance.filter(i => i.balance <= 10);
         const criticalItems = lowStockItems.filter(i => i.balance < 5);
@@ -336,7 +337,6 @@
         
         document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${stockBalance.length} groups`;
         
-        // Render tables and populate filters
         renderStockTable(stockBalance);
         renderTransactionTable(allTransactions);
         populateFilters();
@@ -344,7 +344,7 @@
     }
     
     // ============================================================
-    // 5. RENDER FUNCTIONS
+    // 5. RENDER FUNCTIONS (identical to your original)
     // ============================================================
     function getColorStyle(colorName) {
         const map = { 'red':'#e74c3c','blue':'#3498db','green':'#2ecc71','yellow':'#f1c40f','black':'#2c3e50','white':'#ecf0f1','silver':'#bdc3c7','orange':'#e67e22','pink':'#fd79a8','purple':'#9b59b6','brown':'#8B4513','royal ivory':'#fdf5e6','ivory':'#fffff0','oren':'#e67e22' };
@@ -422,7 +422,6 @@
         });
     }
     
-    // Filtering
     function filterStockTable() {
         const search = document.getElementById('stockSearch').value.toLowerCase();
         const cat = document.getElementById('stockCategoryFilter').value;
@@ -451,9 +450,7 @@
         renderTransactionTable(filtered);
     }
     
-    // Charts
     function renderCharts() {
-        // Stock by category
         const catMap = new Map();
         stockBalance.forEach(i => catMap.set(i.category, (catMap.get(i.category)||0) + i.balance));
         const sortedCats = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
@@ -464,7 +461,6 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Monthly IN/OUT
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
@@ -490,7 +486,6 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Top 10 groups by stock
         const top10 = [...stockBalance].sort((a,b)=>b.balance - a.balance).slice(0,10);
         if (topItemsChart) topItemsChart.destroy();
         topItemsChart = new Chart(document.getElementById('topItemsChart'), {
@@ -501,7 +496,7 @@
     }
     
     // ============================================================
-    // 6. TAB SWITCHING
+    // 6. TAB SWITCHING & EVENT LISTENERS
     // ============================================================
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -512,7 +507,6 @@
         if (tabId === 'charts') renderCharts();
     }
     
-    // Attach event listeners
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
@@ -520,7 +514,6 @@
     document.getElementById('categoryFilter').addEventListener('change', filterTransactionTable);
     document.getElementById('searchInput').addEventListener('keyup', filterTransactionTable);
     
-    // Modal
     window.showModal = (url) => {
         document.getElementById('modalImage').src = url;
         document.getElementById('imageModal').classList.add('show');
@@ -529,7 +522,6 @@
         document.getElementById('imageModal').classList.remove('show');
     };
     
-    // Start
     loadAllData();
 </script>
 </body>
