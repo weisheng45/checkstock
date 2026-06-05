@@ -886,4 +886,30 @@
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         
         if (tab === 'stock') {
-            document.getElementById
+            document.getElementById('stockTab').classList.add('active');
+            document.querySelector('.tab-btn:first-child').classList.add('active');
+            filterStockTable();
+        } else if (tab === 'transactions') {
+            document.getElementById('transactionsTab').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+            filterTransactionTable();
+        } else if (tab === 'charts') {
+            document.getElementById('chartsTab').classList.add('active');
+            document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+            renderCharts();
+        }
+    }
+    
+    window.showModalImage = function(url) {
+        document.getElementById('modalImage').src = url;
+        document.getElementById('imageModal').classList.add('show');
+    };
+    
+    window.closeModal = function() {
+        document.getElementById('imageModal').classList.remove('show');
+    };
+    
+    loadAllData();
+</script>
+</body>
+</html>
