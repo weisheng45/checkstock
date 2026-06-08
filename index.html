@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* (same CSS as before – no changes needed) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background: #f0f4f8; padding: 20px; }
         .dashboard { max-width: 1600px; margin: 0 auto; }
@@ -61,13 +62,13 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Store </h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock by Category</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 
-    <!-- KPI cards with new "Total Transactions" -->
+    <!-- KPI cards -->
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
@@ -75,13 +76,13 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
-    <!-- Side‑by‑side charts -->
+    <!-- Charts -->
     <div class="chart-row">
-        <div class="chart-card"><h3>◔ Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
+        <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
         <div class="chart-card"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
     </div>
 
-    <!-- Low stock alert panel -->
+    <!-- Low stock alert -->
     <div class="alert-panel" id="alertPanel" style="display: none;">
         <div><i class="fas fa-bell"></i> <span class="alert-title">⚠️ Low Stock Alert</span></div>
         <div class="alert-count" id="alertCount">0</div>
@@ -93,7 +94,7 @@
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Balance Tab -->
+    <!-- Stock Tab -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -106,37 +107,23 @@
         </div>
         <div class="table-wrapper">
             <table id="stockTable">
-                <thead><tr>
-                    <th>No.</th>
-                    <th>Category</th>
-                    <th>Balance</th>
-                    <th>Colors</th>
-                    <th>Sizes / Specs</th>
-                    <th>Total IN</th>
-                    <th>Total OUT</th>
-                    <th>Status</th>
-                    <th>Sample Photo</th>
-                </tr></thead>
+                <thead><tr><th>No.</th><th>Category</th><th>Balance</th><th>Colors</th><th>Sizes / Specs</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
                 <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
 
-    <!-- Transactions Tab – loads ALL records -->
+    <!-- Transactions Tab – with department search -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
-            <input type="text" id="searchInput" placeholder="🔍 Search by name, item, colour, spec..." onkeyup="filterTransactionTable()">
+            <input type="text" id="searchInput" placeholder="🔍 Search by name, department, item, colour, spec..." onkeyup="filterTransactionTable()">
             <select id="categoryFilter"><option value="ALL">All Categories</option></select>
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr>
-                    <th>No.</th>
-                    <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
-                    <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
-                </tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td><tr></tbody>
+                <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -345,7 +332,7 @@
         }
         
         renderStockTable(categoryStock);
-        renderTransactionTable(allTransactions);  // load all transactions
+        renderTransactionTable(allTransactions);
         populateCategoryFilter();
         renderCharts();
     }
@@ -436,7 +423,9 @@
         renderStockTable(filtered);
     }
     
-    // Enhanced search: name matches first, then item type, then others – no limit
+    // ============================================================
+    // ENHANCED SEARCH: Name first, then Item Type, then Department, Colour, Spec
+    // ============================================================
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
@@ -449,20 +438,26 @@
         });
         
         if (searchTerm !== "") {
+            // Filter: match any of the fields
             filtered = filtered.filter(t => {
                 return t.name.toLowerCase().includes(searchTerm) ||
+                       t.department.toLowerCase().includes(searchTerm) ||
                        t.itemType.toLowerCase().includes(searchTerm) ||
                        (t.color && t.color.toLowerCase().includes(searchTerm)) ||
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
             
+            // Sort by relevance: Name > Item Type > others (Department, Colour, Spec)
             filtered.sort((a, b) => {
                 const aName = a.name.toLowerCase().includes(searchTerm);
                 const bName = b.name.toLowerCase().includes(searchTerm);
                 if (aName !== bName) return aName ? -1 : 1;
+                
                 const aType = a.itemType.toLowerCase().includes(searchTerm);
                 const bType = b.itemType.toLowerCase().includes(searchTerm);
                 if (aType !== bType) return aType ? -1 : 1;
+                
+                // After that, any match is fine (no further prioritisation needed)
                 return 0;
             });
         }
