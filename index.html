@@ -20,15 +20,17 @@
         .kpi-icon { width: 58px; height: 58px; background: #e0f2ef; border-radius: 40px; display: flex; align-items: center; justify-content: center; font-size: 1.9rem; color: #1e6f5c; }
         .kpi-info h3 { font-size: 0.8rem; color: #597a8b; margin-bottom: 6px; }
         .kpi-number { font-size: 2rem; font-weight: 800; color: #1a2c38; }
+        .chart-grid { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 24px; }
+        .chart-card { flex: 1; min-width: 280px; background: white; padding: 20px; border-radius: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .alert-panel { background: #fff8e7; border-left: 4px solid #e67e22; padding: 15px 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .alert-title { font-weight: 700; color: #e67e22; }
+        .alert-count { background: #e67e22; color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.8rem; }
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2edf2; padding-bottom: 10px; flex-wrap: wrap; }
         .tab-btn { background: none; border: none; padding: 10px 24px; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 30px; color: #597a8b; transition: 0.2s; }
         .tab-btn.active { background: #1e6f5c; color: white; }
         .tab-btn:hover:not(.active) { background: #e0f2ef; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .alert-panel { background: #fff8e7; border-left: 4px solid #e67e22; padding: 15px 20px; border-radius: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .alert-title { font-weight: 700; color: #e67e22; }
-        .alert-count { background: #e67e22; color: white; padding: 4px 12px; border-radius: 30px; font-size: 0.8rem; }
         .filters { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .filters select, .filters input { padding: 10px 20px; border-radius: 40px; border: 1px solid #cfdfe9; background: white; font-size: 0.85rem; outline: none; }
         .table-wrapper { overflow-x: auto; border-radius: 20px; max-height: 550px; overflow-y: auto; }
@@ -52,8 +54,6 @@
         .modal img { max-width: 90%; max-height: 90%; border-radius: 12px; }
         .close-modal { position: absolute; top: 25px; right: 35px; font-size: 38px; color: white; cursor: pointer; }
         .loading-placeholder { text-align: center; padding: 40px; color: #6c8e9e; }
-        .chart-grid { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 24px; }
-        .chart-card { flex: 1; min-width: 280px; background: white; padding: 20px; border-radius: 24px; }
         @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } }
     </style>
 </head>
@@ -67,22 +67,30 @@
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 
-    <!-- KPI cards (colour count removed) -->
+    <!-- KPI cards -->
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
+    <!-- ANALYTICS CHARTS (placed above low stock alert) -->
+    <div class="chart-grid">
+        <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
+        <div class="chart-card"><h3>📊 Stock Quantity by Category</h3><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:24px;"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
+
+    <!-- Low stock alert panel -->
     <div class="alert-panel" id="alertPanel" style="display: none;">
         <div><i class="fas fa-bell"></i> <span class="alert-title">⚠️ Low Stock Alert</span></div>
         <div class="alert-count" id="alertCount">0</div>
     </div>
 
+    <!-- Tabs: Stock Balance and Transactions only -->
     <div class="tabs">
         <button class="tab-btn active" data-tab="stock">📊 Stock by Category</button>
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
-        <button class="tab-btn" data-tab="charts">📈 Analytics</button>
     </div>
 
     <!-- Stock Balance by Category -->
@@ -129,18 +137,9 @@
                     <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
                     <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
                 </tr></thead>
-                <tbody id="transactionTableBody"><td><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
-    </div>
-
-    <!-- Analytics Tab with Pie Chart -->
-    <div id="chartsTab" class="tab-content">
-        <div class="chart-grid">
-            <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
-            <div class="chart-card"><h3>📊 Stock Quantity by Category</h3><canvas id="categoryChart"></canvas></div>
-        </div>
-        <div class="chart-card"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
     </div>
 </div>
 
@@ -160,7 +159,6 @@
         return -1;
     }
 
-    // Convert Google Drive link to thumbnail
     function convertDriveToImage(url) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
@@ -360,7 +358,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="8">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<td><td colspan="8">No stock data<\/td></tr>'; return; }
         for (const cat of items) {
             const row = tbody.insertRow();
             row.insertCell(0).innerHTML = `<strong>${cat.category}</strong>`;
@@ -447,7 +445,7 @@
     }
     
     function renderCharts() {
-        // Pie chart: Stock distribution by category
+        // Pie chart
         const pieLabels = categoryStock.map(c => c.category);
         const pieData = categoryStock.map(c => c.balance);
         if (pieChart) pieChart.destroy();
@@ -457,7 +455,7 @@
             options: { responsive: true, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} units (${((ctx.raw / pieData.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
         });
         
-        // Bar chart: Stock quantity by category
+        // Bar chart
         const catMap = new Map();
         categoryStock.forEach(c => catMap.set(c.category, c.balance));
         const sorted = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
@@ -468,7 +466,7 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Line chart: Monthly IN/OUT
+        // Line chart
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
@@ -501,7 +499,6 @@
         document.getElementById(`${tabId}Tab`).classList.add('active');
         const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.dataset.tab === tabId);
         if (activeBtn) activeBtn.classList.add('active');
-        if (tabId === 'charts') renderCharts();
     }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
