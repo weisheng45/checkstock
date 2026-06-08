@@ -74,10 +74,9 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
-    <!-- ANALYTICS CHARTS -->
+    <!-- ANALYTICS CHARTS (only pie chart and monthly line chart) -->
     <div class="chart-grid">
         <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
-        <div class="chart-card"><h3>📊 Stock Quantity by Category</h3><canvas id="categoryChart"></canvas></div>
     </div>
     <div class="chart-card" style="margin-bottom:24px;"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
 
@@ -116,7 +115,7 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></td></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
         <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
@@ -124,7 +123,7 @@
         </div>
     </div>
 
-    <!-- Transactions Tab (search now includes Name) -->
+    <!-- Transactions Tab -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -148,7 +147,7 @@
 <script>
     let allTransactions = [];
     let categoryStock = [];
-    let pieChart, categoryChart, monthlyChart;
+    let pieChart, monthlyChart;
 
     // Helper: find column index case-insensitively
     function findColumn(headers, possibleNames) {
@@ -292,7 +291,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<td><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -393,7 +392,7 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></table>'; return; }
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></tr>'; return; }
         for (const t of display) {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
@@ -439,7 +438,6 @@
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (cat !== 'ALL' && t.category !== cat) return false;
-            // SEARCH NOW INCLUDES NAME (t.name), item type, colour, and size spec
             if (search && !t.name.toLowerCase().includes(search) 
                 && !t.itemType.toLowerCase().includes(search) 
                 && !(t.color || "").toLowerCase().includes(search) 
@@ -462,18 +460,7 @@
             options: { responsive: true, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} units (${((ctx.raw / pieData.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
         });
         
-        // Bar chart
-        const catMap = new Map();
-        categoryStock.forEach(c => catMap.set(c.category, c.balance));
-        const sorted = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
-        if (categoryChart) categoryChart.destroy();
-        categoryChart = new Chart(document.getElementById('categoryChart'), {
-            type: 'bar',
-            data: { labels: sorted.map(s=>s[0]), datasets: [{ label: 'Current Stock', data: sorted.map(s=>s[1]), backgroundColor: '#289672' }] },
-            options: { responsive: true, maintainAspectRatio: true }
-        });
-        
-        // Line chart
+        // Monthly line chart
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
