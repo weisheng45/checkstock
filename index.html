@@ -395,7 +395,7 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        const display = transactions.slice(0, 200);
+        const display = transactions;
         if (!display.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
         for (let i = 0; i < display.length; i++) {
             const t = display[i];
