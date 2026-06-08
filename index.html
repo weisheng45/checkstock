@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Tag Store – Semantic Stock Balance</title>
+    <title>Red Tag Store – Category Stock Balance</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* (Your existing CSS – unchanged) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background: #f0f4f8; padding: 20px; }
         .dashboard { max-width: 1600px; margin: 0 auto; }
@@ -48,14 +47,11 @@
         .badge-action { display: inline-block; padding: 4px 12px; border-radius: 40px; font-weight: 600; font-size: 0.75rem; }
         .badge-in { background: #dff0ec; color: #1e6f5c; }
         .badge-out { background: #ffe6e5; color: #c24438; }
-        .group-badge { background: #e8eaf6; color: #3949ab; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); justify-content: center; align-items: center; z-index: 2000; }
         .modal.show { display: flex; }
         .modal img { max-width: 90%; max-height: 90%; border-radius: 12px; }
         .close-modal { position: absolute; top: 25px; right: 35px; font-size: 38px; color: white; cursor: pointer; }
         .loading-placeholder { text-align: center; padding: 40px; color: #6c8e9e; }
-        .original-names { font-size: 0.7rem; color: #888; margin-top: 4px; max-width: 350px; }
-        .meaning-note { font-size: 11px; background: #f0f7f4; padding: 8px 12px; border-radius: 12px; margin-top: 10px; text-align: center; }
         @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } }
     </style>
 </head>
@@ -63,7 +59,7 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Store · Semantic Stock Balance</h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock Balance by Category</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -71,7 +67,7 @@
 
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Item Groups</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-palette"></i></div><div class="kpi-info"><h3>Colors</h3><div class="kpi-number" id="colorCount">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
@@ -82,16 +78,15 @@
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" data-tab="stock">📊 Stock Balance</button>
+        <button class="tab-btn active" data-tab="stock">📊 Stock by Category</button>
         <button class="tab-btn" data-tab="transactions">📋 Transactions</button>
         <button class="tab-btn" data-tab="charts">📈 Analytics</button>
     </div>
 
-    <!-- Stock Balance Tab -->
+    <!-- Stock Balance by Category Tab -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
-            <input type="text" id="stockSearch" placeholder="🔍 Search group..." onkeyup="filterStockTable()">
-            <select id="stockCategoryFilter" onchange="filterStockTable()"><option value="ALL">All Categories</option></select>
+            <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
             <select id="stockStatusFilter" onchange="filterStockTable()">
                 <option value="ALL">All Status</option>
                 <option value="critical">🔴 Critical (&lt;5)</option>
@@ -101,14 +96,16 @@
         </div>
         <div class="table-wrapper">
             <table id="stockTable">
-                <thead><tr><th>Group (same meaning)</th><th>Category</th><th>Balance</th><th>Colors</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Photo</th></tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...</td></tr></tbody>
+                <thead><tr><th>Category</th><th>Balance</th><th>Colors</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
+                <tbody id="stockTableBody"><tr><td colspan="7" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
-
+        <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
+            📌 <strong>Stock balance = Total IN quantity – Total OUT quantity, grouped by Category</strong> (no item grouping)
+        </div>
     </div>
 
-    <!-- Transactions Tab -->
+    <!-- Transactions Tab (same as before) -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -117,8 +114,8 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Original Item</th><th>Grouped As</th><th>Qty</th><th>Color</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="10" class="loading-placeholder">Loading...</td></tr></tbody>
+                <thead><tr><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Category</th><th>Photo</th></tr></thead>
+                <tbody id="transactionTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -129,64 +126,17 @@
             <div style="flex:1; background:white; padding:20px; border-radius:24px;"><h3>📊 Stock by Category</h3><canvas id="categoryChart"></canvas></div>
             <div style="flex:1; background:white; padding:20px; border-radius:24px;"><h3>📆 Monthly Activity</h3><canvas id="monthlyChart"></canvas></div>
         </div>
-        <div style="margin-top:24px; background:white; padding:20px; border-radius:24px;"><h3>🏆 Top 10 Item Groups by Stock</h3><canvas id="topItemsChart"></canvas></div>
     </div>
 </div>
 
 <div id="imageModal" class="modal" onclick="closeModal()"><span class="close-modal">&times;</span><img id="modalImage" src=""></div>
 
 <script>
-    // ============================================================
-    // 1. SEMANTIC GROUPS (case‑insensitive matching)
-    //    All keywords are automatically lowercased during matching.
-    // ============================================================
-    const GROUPS = {
-        "Rack / Shelf": ["rack", "beam rack", "pallet rack", "shelf", "step beam", "key beam", "shelving", "book rack", "beam"],
-        "Spanner / Wrench": ["spanner", "wrench", "spanar", "ring spanner", "socket wrench"],
-        "Cabinet / Storage Box": ["cabinet", "cupboard", "storage box", "box file", "filing cabinet", "drawer", "locker"],
-        "Clamp": ["clamp", "toggle clamp", "wise clamp", "c-clamp"],
-        "Hammer": ["hammer", "mallet"],
-        "Screwdriver": ["screwdriver", "phillips", "flathead"],
-        "Pliers": ["pliers", "combination pliers", "cutting pliers"],
-        "Valve": ["valve", "ball valve", "solenoid valve", "hand lever valve", "check valve"],
-        "Switch / Button": ["switch", "push button", "stop push button", "selector switch", "limit switch"],
-        "Adapter / Power Supply": ["adapter", "ac/dc adapter", "power supply", "charger"],
-        "Hose / Tube": ["hose", "air hose", "vacuum hose", "tubing", "pu tubing", "pipe"],
-        "Gauge / Measuring Tool": ["gauge", "drill point gauge", "caliper", "micrometer", "measuring tape"],
-        "Jig / Fixture": ["jig", "fixture", "component fixture", "sawing jig", "trimming jig"],
-        "Motor / Pump": ["motor", "pump", "dc motor", "induction motor", "diaphragm pump"],
-        "Table / Desk": ["table", "desk", "operator table", "workbench", "work table"],
-        "Chair / Seat": ["chair", "kerusi", "stool", "seat"],
-        "Stationery": ["stapler", "puncher", "needle", "tape", "file", "folder", "marker", "calculator", "calendar", "binder"],
-        "Magnetic Strip": ["magnetic strips", "magnetic colour strip", "magnetic color strip", "magnetic strip"],
-        "Magnet": ["magnet", "assorted circle magnet"]
-    };
-
-    // Helper: get group name (case‑insensitive)
-    function getGroupName(itemName) {
-        if (!itemName) return "Unknown";
-        const lowerItem = itemName.toLowerCase();
-        for (const [group, keywords] of Object.entries(GROUPS)) {
-            for (const kw of keywords) {
-                // Compare lowercased keyword with lowercased item name
-                if (lowerItem.includes(kw.toLowerCase())) {
-                    return group;
-                }
-            }
-        }
-        return itemName.trim(); // no match → keep original
-    }
-
-    // ============================================================
-    // 2. GLOBAL DATA
-    // ============================================================
     let allTransactions = [];
-    let stockBalance = [];
-    let categoryChart, monthlyChart, topItemsChart;
+    let categoryStock = [];   // stock per category
+    let categoryChart, monthlyChart;
 
-    // ============================================================
-    // 3. HELPER FUNCTIONS (unchanged)
-    // ============================================================
+    // Helper: convert Google Drive link to image thumbnail
     function convertDriveToImage(url) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
@@ -242,8 +192,7 @@
             if (type && qty > 0) {
                 transactions.push({
                     timestamp, name, department: dept, action,
-                    originalType: type,
-                    group: getGroupName(type),
+                    itemType: type,
                     qty,
                     photoUrl: convertDriveToImage(photo),
                     color: color || "N/A",
@@ -254,22 +203,20 @@
         return transactions;
     }
 
-    function computeStockBalance(transactions) {
-        const map = new Map();
+    // Calculate stock balance per category
+    function computeCategoryStock(transactions) {
+        const map = new Map(); // key = category
         for (const t of transactions) {
-            const key = t.group;
-            const existing = map.get(key) || {
-                group: key,
-                category: t.category,
+            const cat = t.category;
+            const existing = map.get(cat) || {
+                category: cat,
                 totalIn: 0,
                 totalOut: 0,
                 balance: 0,
                 colors: new Set(),
-                originalNames: new Set(),
                 lastPhoto: null,
                 lastTimestamp: null
             };
-            existing.originalNames.add(t.originalType);
             if (t.action === "IN") {
                 existing.totalIn += t.qty;
                 existing.balance += t.qty;
@@ -283,16 +230,14 @@
                 existing.lastTimestamp = t.timestamp;
                 if (t.photoUrl) existing.lastPhoto = t.photoUrl;
             }
-            map.set(key, existing);
+            map.set(cat, existing);
         }
-        return Array.from(map.values()).filter(item => item.balance !== 0).sort((a,b) => b.balance - a.balance);
+        // Only keep categories with non‑zero balance (optional)
+        return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
-    // ============================================================
-    // 4. FETCH DATA
-    // ============================================================
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...</td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="7" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -302,44 +247,43 @@
             if (resp2 && resp2.ok) allTransactions.push(...parseCSVToTransactions(await resp2.text()));
         } catch(e) { console.error("Fetch error:", e); }
         
+        // Remove exact duplicates
         const unique = new Map();
         for (const t of allTransactions) {
-            const key = `${t.timestamp}|${t.originalType}|${t.name}|${t.action}|${t.qty}`;
+            const key = `${t.timestamp}|${t.itemType}|${t.name}|${t.action}|${t.qty}`;
             if (!unique.has(key)) unique.set(key, t);
         }
         allTransactions = Array.from(unique.values());
         allTransactions.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         
-        stockBalance = computeStockBalance(allTransactions);
+        categoryStock = computeCategoryStock(allTransactions);
         
-        const totalStock = stockBalance.reduce((s,i) => s + i.balance, 0);
-        const lowStockItems = stockBalance.filter(i => i.balance <= 10);
-        const criticalItems = lowStockItems.filter(i => i.balance < 5);
+        const totalStock = categoryStock.reduce((s,c) => s + c.balance, 0);
+        const lowItems = categoryStock.filter(c => c.balance <= 10);
+        const critical = lowItems.filter(c => c.balance < 5);
         const allColors = new Set();
-        stockBalance.forEach(i => i.colors.forEach(c => allColors.add(c)));
-        document.getElementById('totalStock').innerText = totalStock;
-        document.getElementById('uniqueItems').innerText = stockBalance.length;
-        document.getElementById('colorCount').innerHTML = `<span style="color:#8e44ad">${allColors.size}</span>`;
-        document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowStockItems.length}</span> / ${criticalItems.length}`;
+        categoryStock.forEach(c => c.colors.forEach(col => allColors.add(col)));
         
-        if (lowStockItems.length > 0) {
+        document.getElementById('totalStock').innerText = totalStock;
+        document.getElementById('uniqueItems').innerText = categoryStock.length;
+        document.getElementById('colorCount').innerHTML = `<span style="color:#8e44ad">${allColors.size}</span>`;
+        document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowItems.length}</span> / ${critical.length}`;
+        
+        if (lowItems.length) {
             document.getElementById('alertPanel').style.display = 'flex';
-            document.getElementById('alertCount').innerText = `${lowStockItems.length} low (${criticalItems.length} critical)`;
+            document.getElementById('alertCount').innerText = `${lowItems.length} low (${critical.length} critical)`;
         } else {
             document.getElementById('alertPanel').style.display = 'none';
         }
         
-        document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${stockBalance.length} groups`;
+        document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions · ${categoryStock.length} categories`;
         
-        renderStockTable(stockBalance);
+        renderStockTable(categoryStock);
         renderTransactionTable(allTransactions);
-        populateFilters();
+        populateCategoryFilter();
         renderCharts();
     }
     
-    // ============================================================
-    // 5. RENDER FUNCTIONS (identical to your original)
-    // ============================================================
     function getColorStyle(colorName) {
         const map = { 'red':'#e74c3c','blue':'#3498db','green':'#2ecc71','yellow':'#f1c40f','black':'#2c3e50','white':'#ecf0f1','silver':'#bdc3c7','orange':'#e67e22','pink':'#fd79a8','purple':'#9b59b6','brown':'#8B4513','royal ivory':'#fdf5e6','ivory':'#fffff0','oren':'#e67e22' };
         const lower = colorName.toLowerCase();
@@ -350,32 +294,28 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="8">No stock data</td></tr>'; return; }
-        for (const item of items) {
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="7">No stock data<\/td></tr>'; return; }
+        for (const cat of items) {
             const row = tbody.insertRow();
-            const isGrouped = item.originalNames.size > 1;
-            const namesList = Array.from(item.originalNames).slice(0,3).join(', ');
-            const more = item.originalNames.size > 3 ? ` +${item.originalNames.size-3}` : '';
-            row.insertCell(0).innerHTML = `<strong>${item.group}</strong>${isGrouped ? `<div class="original-names">📝 ${namesList}${more}</div>` : ''}`;
-            row.insertCell(1).innerText = item.category;
+            row.insertCell(0).innerHTML = `<strong>${cat.category}</strong>`;
             let cls = 'stock-high';
-            if (item.balance <= 5) cls = 'stock-low';
-            else if (item.balance <= 10) cls = 'stock-medium';
-            row.insertCell(2).innerHTML = `<span class="stock-badge ${cls}">${item.balance}</span>`;
-            const colorCell = row.insertCell(3);
-            if (item.colors.size) {
-                colorCell.innerHTML = `<div class="color-list">${Array.from(item.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
+            if (cat.balance <= 5) cls = 'stock-low';
+            else if (cat.balance <= 10) cls = 'stock-medium';
+            row.insertCell(1).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
+            const colorCell = row.insertCell(2);
+            if (cat.colors.size) {
+                colorCell.innerHTML = `<div class="color-list">${Array.from(cat.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
             } else { colorCell.innerHTML = '—'; }
-            row.insertCell(4).innerText = item.totalIn;
-            row.insertCell(5).innerText = item.totalOut;
+            row.insertCell(3).innerText = cat.totalIn;
+            row.insertCell(4).innerText = cat.totalOut;
             let statusText = '', statusColor = '';
-            if (item.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
-            else if (item.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
-            else if (item.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
+            if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
+            else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
+            else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
             else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
-            row.insertCell(6).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
-            const photoCell = row.insertCell(7);
-            if (item.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${item.lastPhoto}" onclick="showModal('${item.lastPhoto}')" onerror="this.style.display='none'">`;
+            row.insertCell(5).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
+            const photoCell = row.insertCell(6);
+            if (cat.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${cat.lastPhoto}" onclick="showModal('${cat.lastPhoto}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
     }
@@ -384,48 +324,39 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions</td></tr>'; return; }
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="9">No transactions<\/td></tr>'; return; }
         for (const t of display) {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
             row.insertCell(1).innerText = t.name || '-';
             row.insertCell(2).innerText = t.department || '-';
             row.insertCell(3).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
-            row.insertCell(4).innerText = t.originalType.length > 25 ? t.originalType.substring(0,22)+'...' : t.originalType;
-            const isGrouped = t.group !== t.originalType;
-            row.insertCell(5).innerHTML = isGrouped ? `<span class="group-badge">${t.group}</span>` : '<span style="color:#888">(unique)</span>';
-            row.insertCell(6).innerText = t.qty;
-            if (t.color && t.color !== "N/A") row.insertCell(7).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
-            else row.insertCell(7).innerText = '—';
-            row.insertCell(8).innerText = t.category;
-            const photoCell = row.insertCell(9);
+            row.insertCell(4).innerText = t.itemType.length > 30 ? t.itemType.substring(0,27)+'...' : t.itemType;
+            row.insertCell(5).innerText = t.qty;
+            if (t.color && t.color !== "N/A") row.insertCell(6).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
+            else row.insertCell(6).innerText = '—';
+            row.insertCell(7).innerText = t.category;
+            const photoCell = row.insertCell(8);
             if (t.action === 'IN' && t.photoUrl) photoCell.innerHTML = `<img class="photo-thumb" src="${t.photoUrl}" onclick="showModal('${t.photoUrl}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
     }
     
-    function populateFilters() {
-        const categories = [...new Set(allTransactions.map(t => t.category))].sort();
-        const stockCat = document.getElementById('stockCategoryFilter');
-        const transCat = document.getElementById('categoryFilter');
-        stockCat.innerHTML = '<option value="ALL">All Categories</option>';
-        transCat.innerHTML = '<option value="ALL">All Categories</option>';
-        categories.forEach(c => {
-            stockCat.innerHTML += `<option value="${c}">${c}</option>`;
-            transCat.innerHTML += `<option value="${c}">${c}</option>`;
-        });
+    function populateCategoryFilter() {
+        const cats = [...new Set(allTransactions.map(t => t.category))].sort();
+        const filterSelect = document.getElementById('categoryFilter');
+        filterSelect.innerHTML = '<option value="ALL">All Categories</option>';
+        cats.forEach(c => filterSelect.innerHTML += `<option value="${c}">${c}</option>`);
     }
     
     function filterStockTable() {
         const search = document.getElementById('stockSearch').value.toLowerCase();
-        const cat = document.getElementById('stockCategoryFilter').value;
         const status = document.getElementById('stockStatusFilter').value;
-        let filtered = stockBalance.filter(item => {
-            if (cat !== 'ALL' && item.category !== cat) return false;
-            if (search && !item.group.toLowerCase().includes(search)) return false;
-            if (status === 'critical' && item.balance >= 5) return false;
-            if (status === 'low' && (item.balance < 5 || item.balance > 10)) return false;
-            if (status === 'normal' && item.balance <= 10) return false;
+        let filtered = categoryStock.filter(cat => {
+            if (search && !cat.category.toLowerCase().includes(search)) return false;
+            if (status === 'critical' && cat.balance >= 5) return false;
+            if (status === 'low' && (cat.balance < 5 || cat.balance > 10)) return false;
+            if (status === 'normal' && cat.balance <= 10) return false;
             return true;
         });
         renderStockTable(filtered);
@@ -438,23 +369,25 @@
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (cat !== 'ALL' && t.category !== cat) return false;
-            if (search && !t.originalType.toLowerCase().includes(search) && !t.group.toLowerCase().includes(search)) return false;
+            if (search && !t.itemType.toLowerCase().includes(search) && !t.category.toLowerCase().includes(search)) return false;
             return true;
         });
         renderTransactionTable(filtered);
     }
     
     function renderCharts() {
+        // Stock by category (bar chart)
         const catMap = new Map();
-        stockBalance.forEach(i => catMap.set(i.category, (catMap.get(i.category)||0) + i.balance));
-        const sortedCats = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
+        categoryStock.forEach(c => catMap.set(c.category, c.balance));
+        const sorted = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
         if (categoryChart) categoryChart.destroy();
         categoryChart = new Chart(document.getElementById('categoryChart'), {
             type: 'bar',
-            data: { labels: sortedCats.map(c=>c[0]), datasets: [{ label: 'Stock Quantity', data: sortedCats.map(c=>c[1]), backgroundColor: '#289672' }] },
+            data: { labels: sorted.map(s=>s[0]), datasets: [{ label: 'Current Stock', data: sorted.map(s=>s[1]), backgroundColor: '#289672' }] },
             options: { responsive: true, maintainAspectRatio: true }
         });
         
+        // Monthly IN/OUT
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
@@ -479,19 +412,9 @@
             },
             options: { responsive: true, maintainAspectRatio: true }
         });
-        
-        const top10 = [...stockBalance].sort((a,b)=>b.balance - a.balance).slice(0,10);
-        if (topItemsChart) topItemsChart.destroy();
-        topItemsChart = new Chart(document.getElementById('topItemsChart'), {
-            type: 'bar',
-            data: { labels: top10.map(i=>i.group.length>15?i.group.substring(0,12)+'...':i.group), datasets: [{ label: 'Current Stock', data: top10.map(i=>i.balance), backgroundColor: '#e67e22' }] },
-            options: { responsive: true, maintainAspectRatio: true, indexAxis: 'y' }
-        });
     }
     
-    // ============================================================
-    // 6. TAB SWITCHING & EVENT LISTENERS
-    // ============================================================
+    // Tab switching
     function switchTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -501,6 +424,7 @@
         if (tabId === 'charts') renderCharts();
     }
     
+    // Event listeners
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
