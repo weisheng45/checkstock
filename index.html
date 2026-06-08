@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Tag Store – Category Stock Balance</title>
+    <title>Red Tag Store – Stock by Category (with Colour & Spec)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -40,8 +40,8 @@
         .stock-medium { background: #fff3e0; color: #e67e22; }
         .stock-low { background: #ffe6e5; color: #c24438; }
         .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid #ddd; }
-        .color-list { display: flex; flex-wrap: wrap; gap: 6px; }
-        .color-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
+        .color-list, .spec-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .color-tag, .spec-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
         .photo-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 10px; cursor: pointer; background: #f5f5f5; border: 1px solid #e0e0e0; }
         .photo-thumb:hover { transform: scale(1.1); }
         .badge-action { display: inline-block; padding: 4px 12px; border-radius: 40px; font-weight: 600; font-size: 0.75rem; }
@@ -59,7 +59,7 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock Balance by Category</h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock by Category</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -69,7 +69,7 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-palette"></i></div><div class="kpi-info"><h3>Colors</h3><div class="kpi-number" id="colorCount">—</div></div></div>
-        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-ruler"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
     <div class="alert-panel" id="alertPanel" style="display: none;">
@@ -79,11 +79,11 @@
 
     <div class="tabs">
         <button class="tab-btn active" data-tab="stock">📊 Stock by Category</button>
-        <button class="tab-btn" data-tab="transactions">📋 Transactions</button>
+        <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
         <button class="tab-btn" data-tab="charts">📈 Analytics</button>
     </div>
 
-    <!-- Stock Balance by Category Tab -->
+    <!-- Stock Balance by Category -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -96,26 +96,38 @@
         </div>
         <div class="table-wrapper">
             <table id="stockTable">
-                <thead><tr><th>Category</th><th>Balance</th><th>Colors</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="7" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <thead><tr>
+                    <th>Category</th>
+                    <th>Balance</th>
+                    <th>Colors</th>
+                    <th>Sizes / Specs</th>
+                    <th>Total IN</th>
+                    <th>Total OUT</th>
+                    <th>Status</th>
+                    <th>Sample Photo</th>
+                </tr></thead>
+                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
-        <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
-            📌 <strong>Stock balance = Total IN quantity – Total OUT quantity, grouped by Category</strong> (no item grouping)
+        <div class="meaning-note" style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
+            📌 <strong>Stock balance = Total IN – Total OUT</strong> (grouped by Category). Shows all unique colours and size/specs recorded in each category.
         </div>
     </div>
 
-    <!-- Transactions Tab (same as before) -->
+    <!-- Transactions Tab (full details) -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
-            <input type="text" id="searchInput" placeholder="🔍 Search item..." onkeyup="filterTransactionTable()">
+            <input type="text" id="searchInput" placeholder="🔍 Search item, colour, spec..." onkeyup="filterTransactionTable()">
             <select id="categoryFilter"><option value="ALL">All Categories</option></select>
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <thead><tr>
+                    <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
+                    <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
+                </thead>
+                <tbody id="transactionTableBody"><tr><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -133,10 +145,10 @@
 
 <script>
     let allTransactions = [];
-    let categoryStock = [];   // stock per category
+    let categoryStock = [];
     let categoryChart, monthlyChart;
 
-    // Helper: convert Google Drive link to image thumbnail
+    // Convert Google Drive link to thumbnail
     function convertDriveToImage(url) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
@@ -147,6 +159,7 @@
         return url.includes('thumbnail?id=') ? url : null;
     }
 
+    // Parse CSV line respecting quotes
     function parseCSVLine(line) {
         const result = [];
         let inQuote = false;
@@ -162,6 +175,15 @@
         return result;
     }
 
+    // Extract size/spec from record – try IN column first, then OUT column
+    function getSizeSpec(record, action) {
+        if (action === 'IN') {
+            return record["Sizes / Specs (IN) - if available"] || record["Sizes / Specs (IN)"] || "";
+        } else {
+            return record["Sizes / Specs (OUT) - if available"] || record["Sizes / Specs (OUT)"] || "";
+        }
+    }
+
     function parseCSVToTransactions(csvText) {
         const lines = csvText.split(/\r?\n/);
         if (lines.length < 2) return [];
@@ -174,11 +196,14 @@
             headers.forEach((h, idx) => { record[h] = row[idx] || ''; });
             let action = (record["Please select action"] || "").toUpperCase();
             if (action !== "IN" && action !== "OUT") continue;
+            
             let type = "", qty = 0, photo = "", color = "";
             let category = record["Categories"] || record["categories"] || "Uncategorized";
             let timestamp = record["Timestamp"] || "";
             let name = record["Name"] || "";
             let dept = record["Department"] || "";
+            let sizeSpec = getSizeSpec(record, action);
+            
             if (action === "IN") {
                 type = record["Types (IN)"] || "";
                 qty = parseFloat(record["Qty (IN)"]) || 0;
@@ -196,6 +221,7 @@
                     qty,
                     photoUrl: convertDriveToImage(photo),
                     color: color || "N/A",
+                    sizeSpec: sizeSpec || "—",
                     category
                 });
             }
@@ -203,9 +229,9 @@
         return transactions;
     }
 
-    // Calculate stock balance per category
+    // Aggregate stock by category (balance = IN - OUT), collect colors & sizeSpecs
     function computeCategoryStock(transactions) {
-        const map = new Map(); // key = category
+        const map = new Map();
         for (const t of transactions) {
             const cat = t.category;
             const existing = map.get(cat) || {
@@ -214,6 +240,7 @@
                 totalOut: 0,
                 balance: 0,
                 colors: new Set(),
+                sizeSpecs: new Set(),
                 lastPhoto: null,
                 lastTimestamp: null
             };
@@ -221,10 +248,14 @@
                 existing.totalIn += t.qty;
                 existing.balance += t.qty;
                 if (t.color && t.color !== "N/A" && t.color !== "-") existing.colors.add(t.color);
+                if (t.sizeSpec && t.sizeSpec !== "—" && t.sizeSpec.trim() !== "") existing.sizeSpecs.add(t.sizeSpec);
                 if (t.photoUrl && !existing.lastPhoto) existing.lastPhoto = t.photoUrl;
             } else {
                 existing.totalOut += t.qty;
                 existing.balance -= t.qty;
+                // also collect from OUT? optionally add size/color from OUT if needed
+                if (t.color && t.color !== "N/A" && t.color !== "-") existing.colors.add(t.color);
+                if (t.sizeSpec && t.sizeSpec !== "—" && t.sizeSpec.trim() !== "") existing.sizeSpecs.add(t.sizeSpec);
             }
             if (!existing.lastTimestamp || new Date(t.timestamp) > new Date(existing.lastTimestamp)) {
                 existing.lastTimestamp = t.timestamp;
@@ -232,12 +263,12 @@
             }
             map.set(cat, existing);
         }
-        // Only keep categories with non‑zero balance (optional)
+        // Only show categories with non-zero balance (optional)
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="7" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -247,7 +278,7 @@
             if (resp2 && resp2.ok) allTransactions.push(...parseCSVToTransactions(await resp2.text()));
         } catch(e) { console.error("Fetch error:", e); }
         
-        // Remove exact duplicates
+        // Remove duplicates
         const unique = new Map();
         for (const t of allTransactions) {
             const key = `${t.timestamp}|${t.itemType}|${t.name}|${t.action}|${t.qty}`;
@@ -294,27 +325,39 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="7">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="8">No stock data<\/td></td>'; return; }
         for (const cat of items) {
             const row = tbody.insertRow();
             row.insertCell(0).innerHTML = `<strong>${cat.category}</strong>`;
+            
             let cls = 'stock-high';
             if (cat.balance <= 5) cls = 'stock-low';
             else if (cat.balance <= 10) cls = 'stock-medium';
             row.insertCell(1).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
+            
+            // Colors column
             const colorCell = row.insertCell(2);
             if (cat.colors.size) {
                 colorCell.innerHTML = `<div class="color-list">${Array.from(cat.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
             } else { colorCell.innerHTML = '—'; }
-            row.insertCell(3).innerText = cat.totalIn;
-            row.insertCell(4).innerText = cat.totalOut;
+            
+            // Sizes/Specs column
+            const specCell = row.insertCell(3);
+            if (cat.sizeSpecs.size) {
+                specCell.innerHTML = `<div class="spec-list">${Array.from(cat.sizeSpecs).map(s => `<span class="spec-tag">📏 ${s}</span>`).join('')}</div>`;
+            } else { specCell.innerHTML = '—'; }
+            
+            row.insertCell(4).innerText = cat.totalIn;
+            row.insertCell(5).innerText = cat.totalOut;
+            
             let statusText = '', statusColor = '';
             if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
             else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
             else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
             else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
-            row.insertCell(5).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
-            const photoCell = row.insertCell(6);
+            row.insertCell(6).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
+            
+            const photoCell = row.insertCell(7);
             if (cat.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${cat.lastPhoto}" onclick="showModal('${cat.lastPhoto}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
@@ -324,7 +367,7 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="9">No transactions<\/td></tr>'; return; }
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></td>'; return; }
         for (const t of display) {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
@@ -333,10 +376,13 @@
             row.insertCell(3).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
             row.insertCell(4).innerText = t.itemType.length > 30 ? t.itemType.substring(0,27)+'...' : t.itemType;
             row.insertCell(5).innerText = t.qty;
+            // Color
             if (t.color && t.color !== "N/A") row.insertCell(6).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
             else row.insertCell(6).innerText = '—';
-            row.insertCell(7).innerText = t.category;
-            const photoCell = row.insertCell(8);
+            // Size/Spec
+            row.insertCell(7).innerText = t.sizeSpec.length > 25 ? t.sizeSpec.substring(0,22)+'...' : t.sizeSpec;
+            row.insertCell(8).innerText = t.category;
+            const photoCell = row.insertCell(9);
             if (t.action === 'IN' && t.photoUrl) photoCell.innerHTML = `<img class="photo-thumb" src="${t.photoUrl}" onclick="showModal('${t.photoUrl}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
@@ -369,14 +415,13 @@
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (cat !== 'ALL' && t.category !== cat) return false;
-            if (search && !t.itemType.toLowerCase().includes(search) && !t.category.toLowerCase().includes(search)) return false;
+            if (search && !t.itemType.toLowerCase().includes(search) && !t.category.toLowerCase().includes(search) && !t.color.toLowerCase().includes(search) && !t.sizeSpec.toLowerCase().includes(search)) return false;
             return true;
         });
         renderTransactionTable(filtered);
     }
     
     function renderCharts() {
-        // Stock by category (bar chart)
         const catMap = new Map();
         categoryStock.forEach(c => catMap.set(c.category, c.balance));
         const sorted = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
@@ -387,7 +432,6 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
-        // Monthly IN/OUT
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
@@ -424,7 +468,6 @@
         if (tabId === 'charts') renderCharts();
     }
     
-    // Event listeners
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
