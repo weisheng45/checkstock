@@ -116,12 +116,12 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></td></tbody>
             </table>
         </div>
     </div>
 
-    <!-- Transactions Tab with enhanced search ranking -->
+    <!-- Transactions Tab – loads ALL records -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -135,7 +135,7 @@
                     <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
                     <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
                 </tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></table></tbody>
+                <tbody id="transactionTableBody"><td><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -342,7 +342,8 @@
         }
         
         renderStockTable(categoryStock);
-        renderTransactionTable(allTransactions.slice(0, 200)); // initial load first 200
+        // === LOAD ALL TRANSACTIONS (no 200 limit) ===
+        renderTransactionTable(allTransactions);
         populateCategoryFilter();
         renderCharts();
     }
@@ -357,7 +358,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></td>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -392,7 +393,7 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></table>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></tr>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
@@ -435,6 +436,7 @@
     
     // ============================================================
     // ENHANCED SEARCH: Name matches first, then Item Type matches
+    // AND loads ALL results (no 200 limit)
     // ============================================================
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
@@ -473,9 +475,8 @@
             });
         }
         
-        // Limit to 200 rows for performance (but after sorting, so priority results are included)
-        const display = filtered.slice(0, 200);
-        renderTransactionTable(display);
+        // === NO LIMIT – show all filtered results ===
+        renderTransactionTable(filtered);
     }
     
     function renderCharts() {
