@@ -7,7 +7,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* (all existing styles unchanged) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background: #f0f4f8; padding: 20px; }
         .dashboard { max-width: 1600px; margin: 0 auto; }
@@ -58,6 +57,8 @@
         .close-modal:hover { background: #c0392b; transform: scale(1.05); }
         .loading-placeholder { text-align: center; padding: 40px; color: #6c8e9e; }
         .note-right { margin-left: auto; font-size: 0.75rem; color: #e67e22; background: #fff3e0; padding: 6px 12px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px; }
+        .refresh-note { cursor: pointer; color: #1e6f5c; font-weight: 600; text-decoration: underline; }
+        .refresh-note:hover { color: #0e5243; }
         @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } .note-right { font-size: 0.65rem; } }
     </style>
 </head>
@@ -116,20 +117,23 @@
         </div>
     </div>
 
-    <!-- Transactions Tab – with note on the right side -->
+    <!-- Transactions Tab with clickable refresh icon in note -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
             <input type="text" id="searchInput" placeholder="🔍 Search by name, department, item, colour, spec..." onkeyup="filterTransactionTable()">
             <select id="categoryFilter"><option value="ALL">All Categories</option></select>
             <div class="note-right">
-                <i class="fas fa-info-circle"></i> If image not loaded, press refresh
+                <i class="fas fa-info-circle"></i> If image not loaded, 
+                <span class="refresh-note" onclick="loadAllData()">
+                    <i class="fas fa-sync-alt"></i> press refresh
+                </span>
             </div>
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
                 <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><td><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -141,12 +145,11 @@
 </div>
 
 <script>
-    // (All JavaScript unchanged from the previous correct version)
+    // (Full JavaScript remains exactly the same as the previous working version)
     let allTransactions = [];
     let categoryStock = [];
     let pieChart, monthlyChart;
 
-    // Helper: find column index case-insensitively
     function findColumn(headers, possibleNames) {
         for (let name of possibleNames) {
             let idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
@@ -279,7 +282,6 @@
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
-    // Fallback sample data
     const sampleTransactions = [
         { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
         { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
@@ -433,7 +435,6 @@
         renderStockTable(filtered);
     }
     
-    // Enhanced search: Name first, then Item Type, then others
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
