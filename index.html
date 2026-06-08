@@ -67,10 +67,11 @@
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 
-    <!-- KPI cards -->
+    <!-- KPI cards with new "Total Transactions" -->
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exchange-alt"></i></div><div class="kpi-info"><h3>Total Transactions</h3><div class="kpi-number" id="totalTransactions">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
@@ -116,7 +117,7 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></td></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -135,7 +136,7 @@
                     <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
                     <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
                 </tr></thead>
-                <tbody id="transactionTableBody"><td><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td><tr></tbody>
             </table>
         </div>
     </div>
@@ -329,9 +330,11 @@
         const totalStock = categoryStock.reduce((s,c) => s + c.balance, 0);
         const lowItems = categoryStock.filter(c => c.balance <= 10);
         const critical = lowItems.filter(c => c.balance < 5);
+        const totalTransactions = allTransactions.length;
         
         document.getElementById('totalStock').innerText = totalStock;
         document.getElementById('uniqueItems').innerText = categoryStock.length;
+        document.getElementById('totalTransactions').innerText = totalTransactions;
         document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowItems.length}</span> / ${critical.length}`;
         
         if (lowItems.length) {
@@ -342,8 +345,7 @@
         }
         
         renderStockTable(categoryStock);
-        // === LOAD ALL TRANSACTIONS (no 200 limit) ===
-        renderTransactionTable(allTransactions);
+        renderTransactionTable(allTransactions);  // load all transactions
         populateCategoryFilter();
         renderCharts();
     }
@@ -358,7 +360,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></td>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -393,7 +395,7 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></tr>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
@@ -434,25 +436,19 @@
         renderStockTable(filtered);
     }
     
-    // ============================================================
-    // ENHANCED SEARCH: Name matches first, then Item Type matches
-    // AND loads ALL results (no 200 limit)
-    // ============================================================
+    // Enhanced search: name matches first, then item type, then others – no limit
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
         const category = document.getElementById('categoryFilter').value;
         
-        // First, apply basic filters (action, category)
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (category !== 'ALL' && t.category !== category) return false;
             return true;
         });
         
-        // If there is a search term, apply text search and then sort by relevance
         if (searchTerm !== "") {
-            // Filter to only those that match somewhere in name, itemType, color, spec
             filtered = filtered.filter(t => {
                 return t.name.toLowerCase().includes(searchTerm) ||
                        t.itemType.toLowerCase().includes(searchTerm) ||
@@ -460,27 +456,21 @@
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
             
-            // Sort: Name matches first, then Item Type matches, then others
             filtered.sort((a, b) => {
-                const aNameMatch = a.name.toLowerCase().includes(searchTerm);
-                const bNameMatch = b.name.toLowerCase().includes(searchTerm);
-                if (aNameMatch !== bNameMatch) return aNameMatch ? -1 : 1;
-                
-                const aTypeMatch = a.itemType.toLowerCase().includes(searchTerm);
-                const bTypeMatch = b.itemType.toLowerCase().includes(searchTerm);
-                if (aTypeMatch !== bTypeMatch) return aTypeMatch ? -1 : 1;
-                
-                // If both same priority, keep original chronological order (newest first)
+                const aName = a.name.toLowerCase().includes(searchTerm);
+                const bName = b.name.toLowerCase().includes(searchTerm);
+                if (aName !== bName) return aName ? -1 : 1;
+                const aType = a.itemType.toLowerCase().includes(searchTerm);
+                const bType = b.itemType.toLowerCase().includes(searchTerm);
+                if (aType !== bType) return aType ? -1 : 1;
                 return 0;
             });
         }
         
-        // === NO LIMIT – show all filtered results ===
         renderTransactionTable(filtered);
     }
     
     function renderCharts() {
-        // Pie chart
         const pieLabels = categoryStock.map(c => c.category);
         const pieData = categoryStock.map(c => c.balance);
         if (pieChart) pieChart.destroy();
@@ -490,7 +480,6 @@
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} units (${((ctx.raw / pieData.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
         });
         
-        // Line chart
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
