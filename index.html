@@ -74,7 +74,7 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
-    <!-- ANALYTICS CHARTS (placed above low stock alert) -->
+    <!-- ANALYTICS CHARTS -->
     <div class="chart-grid">
         <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
         <div class="chart-card"><h3>📊 Stock Quantity by Category</h3><canvas id="categoryChart"></canvas></div>
@@ -87,13 +87,13 @@
         <div class="alert-count" id="alertCount">0</div>
     </div>
 
-    <!-- Tabs: Stock Balance and Transactions only -->
+    <!-- Tabs -->
     <div class="tabs">
         <button class="tab-btn active" data-tab="stock">📊 Stock by Category</button>
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Balance by Category -->
+    <!-- Stock Balance Tab -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -116,7 +116,7 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></td></tbody>
             </table>
         </div>
         <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
@@ -124,11 +124,11 @@
         </div>
     </div>
 
-    <!-- Transactions Tab -->
+    <!-- Transactions Tab (search now includes Name) -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
-            <input type="text" id="searchInput" placeholder="🔍 Search item, colour, spec..." onkeyup="filterTransactionTable()">
+            <input type="text" id="searchInput" placeholder="🔍 Search by name, item, colour, spec..." onkeyup="filterTransactionTable()">
             <select id="categoryFilter"><option value="ALL">All Categories</option></select>
         </div>
         <div class="table-wrapper">
@@ -150,7 +150,7 @@
     let categoryStock = [];
     let pieChart, categoryChart, monthlyChart;
 
-    // Helper: robustly find column index by partial name (case-insensitive)
+    // Helper: find column index case-insensitively
     function findColumn(headers, possibleNames) {
         for (let name of possibleNames) {
             let idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
@@ -283,6 +283,7 @@
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
+    // Fallback sample data
     const sampleTransactions = [
         { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
         { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
@@ -291,7 +292,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<td><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -358,7 +359,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<td><td colspan="8">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="8">No stock data<\/td></tr>'; return; }
         for (const cat of items) {
             const row = tbody.insertRow();
             row.insertCell(0).innerHTML = `<strong>${cat.category}</strong>`;
@@ -392,7 +393,7 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></tr>'; return; }
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></table>'; return; }
         for (const t of display) {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
@@ -438,7 +439,13 @@
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (cat !== 'ALL' && t.category !== cat) return false;
-            if (search && !t.itemType.toLowerCase().includes(search) && !t.category.toLowerCase().includes(search) && !(t.color || "").toLowerCase().includes(search) && !(t.sizeSpec || "").toLowerCase().includes(search)) return false;
+            // SEARCH NOW INCLUDES NAME (t.name), item type, colour, and size spec
+            if (search && !t.name.toLowerCase().includes(search) 
+                && !t.itemType.toLowerCase().includes(search) 
+                && !(t.color || "").toLowerCase().includes(search) 
+                && !(t.sizeSpec || "").toLowerCase().includes(search)) {
+                return false;
+            }
             return true;
         });
         renderTransactionTable(filtered);
