@@ -52,6 +52,8 @@
         .modal img { max-width: 90%; max-height: 90%; border-radius: 12px; }
         .close-modal { position: absolute; top: 25px; right: 35px; font-size: 38px; color: white; cursor: pointer; }
         .loading-placeholder { text-align: center; padding: 40px; color: #6c8e9e; }
+        .chart-grid { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 24px; }
+        .chart-card { flex: 1; min-width: 280px; background: white; padding: 20px; border-radius: 24px; }
         @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } }
     </style>
 </head>
@@ -83,7 +85,7 @@
         <button class="tab-btn" data-tab="charts">📈 Analytics</button>
     </div>
 
-    <!--  by Category -->
+    <!-- Stock Balance by Category -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -106,8 +108,11 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td><tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
+        </div>
+        <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
+            📌 <strong>Stock balance = Total IN – Total OUT</strong> (grouped by Category). Colours and specs are collected from all IN/OUT records.
         </div>
     </div>
 
@@ -124,17 +129,18 @@
                     <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
                     <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
                 </tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><td><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
 
-    <!-- Analytics Tab -->
+    <!-- Analytics Tab with Pie Chart -->
     <div id="chartsTab" class="tab-content">
-        <div style="display: flex; flex-wrap: wrap; gap: 24px;">
-            <div style="flex:1; background:white; padding:20px; border-radius:24px;"><h3>📊 Stock by Category</h3><canvas id="categoryChart"></canvas></div>
-            <div style="flex:1; background:white; padding:20px; border-radius:24px;"><h3>📆 Monthly Activity</h3><canvas id="monthlyChart"></canvas></div>
+        <div class="chart-grid">
+            <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
+            <div class="chart-card"><h3>📊 Stock Quantity by Category</h3><canvas id="categoryChart"></canvas></div>
         </div>
+        <div class="chart-card"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
     </div>
 </div>
 
@@ -143,7 +149,7 @@
 <script>
     let allTransactions = [];
     let categoryStock = [];
-    let categoryChart, monthlyChart;
+    let pieChart, categoryChart, monthlyChart;
 
     // Helper: robustly find column index by partial name (case-insensitive)
     function findColumn(headers, possibleNames) {
@@ -165,7 +171,6 @@
         return url.includes('thumbnail?id=') ? url : null;
     }
 
-    // Parse CSV line (handles quotes)
     function parseCSVLine(line) {
         const result = [];
         let inQuote = false;
@@ -181,13 +186,11 @@
         return result;
     }
 
-    // Parse CSV to transactions with flexible column detection
     function parseCSVToTransactions(csvText) {
         const lines = csvText.split(/\r?\n/);
         if (lines.length < 2) return [];
         const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
         
-        // Find required column indices
         const colAction = findColumn(headers, ["Please select action", "action"]);
         const colTypeIn = findColumn(headers, ["Types (IN)", "type in"]);
         const colQtyIn = findColumn(headers, ["Qty (IN)", "qty in"]);
@@ -198,14 +201,12 @@
         const colTimestamp = findColumn(headers, ["Timestamp", "timestamp"]);
         const colName = findColumn(headers, ["Name", "name"]);
         const colDept = findColumn(headers, ["Department", "department"]);
-        // Color columns
         const colColorIn = findColumn(headers, ["Color (IN)", "color (in)", "Color (IN) - if available"]);
         const colColorOut = findColumn(headers, ["Color (OUT)", "color (out)", "Color (OUT) - if available"]);
-        // Size/Spec columns
         const colSpecIn = findColumn(headers, ["Sizes / Specs (IN)", "sizes / specs (in)", "Sizes / Specs (IN) - if available"]);
         const colSpecOut = findColumn(headers, ["Sizes / Specs (OUT)", "sizes / specs (out)", "Sizes / Specs (OUT) - if available"]);
         
-        if (colAction === -1) return []; // no action column
+        if (colAction === -1) return [];
 
         const transactions = [];
         for (let i = 1; i < lines.length; i++) {
@@ -249,7 +250,6 @@
         return transactions;
     }
 
-    // Aggregate stock by category (balance = IN - OUT)
     function computeCategoryStock(transactions) {
         const map = new Map();
         for (const t of transactions) {
@@ -282,11 +282,9 @@
             }
             map.set(cat, existing);
         }
-        // Return categories with non-zero balance (optional)
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
-    // Fallback sample data to demonstrate colours and specs (in case sheets aren't published)
     const sampleTransactions = [
         { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
         { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
@@ -295,7 +293,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td><tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -314,13 +312,11 @@
             }
         } catch(e) { console.error("Fetch error:", e); }
         
-        // If no data loaded, use sample to show colours & specs work
         if (!loaded || allTransactions.length === 0) {
-            console.log("Using sample data (sheets not published or empty)");
+            console.log("Using sample data");
             allTransactions = sampleTransactions;
             document.getElementById('lastUpdated').innerHTML = "⚠️ Using sample data. Please publish your Google Sheets as CSV.";
         } else {
-            // Remove duplicates
             const unique = new Map();
             for (const t of allTransactions) {
                 const key = `${t.timestamp}|${t.itemType}|${t.name}|${t.action}|${t.qty}`;
@@ -372,29 +368,22 @@
             if (cat.balance <= 5) cls = 'stock-low';
             else if (cat.balance <= 10) cls = 'stock-medium';
             row.insertCell(1).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
-            
-            // Colors column
             const colorCell = row.insertCell(2);
             if (cat.colors.size) {
                 colorCell.innerHTML = `<div class="color-list">${Array.from(cat.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
             } else { colorCell.innerHTML = '—'; }
-            
-            // Sizes/Specs column
             const specCell = row.insertCell(3);
             if (cat.sizeSpecs.size) {
                 specCell.innerHTML = `<div class="spec-list">${Array.from(cat.sizeSpecs).map(s => `<span class="spec-tag">📏 ${s}</span>`).join('')}</div>`;
             } else { specCell.innerHTML = '—'; }
-            
             row.insertCell(4).innerText = cat.totalIn;
             row.insertCell(5).innerText = cat.totalOut;
-            
             let statusText = '', statusColor = '';
             if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
             else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
             else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
             else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
             row.insertCell(6).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
-            
             const photoCell = row.insertCell(7);
             if (cat.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${cat.lastPhoto}" onclick="showModal('${cat.lastPhoto}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
@@ -405,7 +394,7 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td><tr>'; return; }
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></tr>'; return; }
         for (const t of display) {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
@@ -414,10 +403,8 @@
             row.insertCell(3).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
             row.insertCell(4).innerText = t.itemType.length > 30 ? t.itemType.substring(0,27)+'...' : t.itemType;
             row.insertCell(5).innerText = t.qty;
-            // Color
             if (t.color) row.insertCell(6).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
             else row.insertCell(6).innerText = '—';
-            // Size/Spec
             row.insertCell(7).innerText = t.sizeSpec.length > 25 ? t.sizeSpec.substring(0,22)+'...' : (t.sizeSpec || '—');
             row.insertCell(8).innerText = t.category;
             const photoCell = row.insertCell(9);
@@ -460,6 +447,17 @@
     }
     
     function renderCharts() {
+        // Pie chart: Stock distribution by category
+        const pieLabels = categoryStock.map(c => c.category);
+        const pieData = categoryStock.map(c => c.balance);
+        if (pieChart) pieChart.destroy();
+        pieChart = new Chart(document.getElementById('pieChart'), {
+            type: 'pie',
+            data: { labels: pieLabels, datasets: [{ data: pieData, backgroundColor: ['#289672', '#e67e22', '#3498db', '#9b59b6', '#e74c3c', '#1abc9c', '#f39c12', '#2c3e50', '#d35400'] }] },
+            options: { responsive: true, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} units (${((ctx.raw / pieData.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
+        });
+        
+        // Bar chart: Stock quantity by category
         const catMap = new Map();
         categoryStock.forEach(c => catMap.set(c.category, c.balance));
         const sorted = Array.from(catMap.entries()).sort((a,b)=>b[1]-a[1]);
@@ -470,6 +468,7 @@
             options: { responsive: true, maintainAspectRatio: true }
         });
         
+        // Line chart: Monthly IN/OUT
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
