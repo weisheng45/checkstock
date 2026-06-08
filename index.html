@@ -61,7 +61,7 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fa-solid fa-tags"></i> Red Tag Store </h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock by Category</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -74,7 +74,7 @@
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="kpi-info"><h3>Low Stock (&lt;10)</h3><div class="kpi-number" id="lowStockCount">—</div></div></div>
     </div>
 
-    <!-- Side‑by‑side charts: pie left, line right -->
+    <!-- Side‑by‑side charts -->
     <div class="chart-row">
         <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
         <div class="chart-card"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
@@ -92,7 +92,7 @@
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Balance Tab -->
+    <!-- Stock Balance Tab (with No. column) -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -106,6 +106,7 @@
         <div class="table-wrapper">
             <table id="stockTable">
                 <thead><tr>
+                    <th>No.</th>
                     <th>Category</th>
                     <th>Balance</th>
                     <th>Colors</th>
@@ -115,7 +116,7 @@
                     <th>Status</th>
                     <th>Sample Photo</th>
                 </tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="8" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
         <div style="font-size:11px; background:#f0f7f4; padding:8px; border-radius:12px; margin-top:10px; text-align:center;">
@@ -123,7 +124,7 @@
         </div>
     </div>
 
-    <!-- Transactions Tab -->
+    <!-- Transactions Tab (with No. column) -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -133,10 +134,11 @@
         <div class="table-wrapper">
             <table id="transactionTable">
                 <thead><tr>
+                    <th>No.</th>
                     <th>Date</th><th>Name</th><th>Dept</th><th>Action</th>
                     <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
                 </tr></thead>
-                <tbody id="transactionTableBody"><td><td colspan="10" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -291,7 +293,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="8" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -358,31 +360,33 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="8">No stock data<\/td></tr>'; return; }
-        for (const cat of items) {
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        for (let i = 0; i < items.length; i++) {
+            const cat = items[i];
             const row = tbody.insertRow();
-            row.insertCell(0).innerHTML = `<strong>${cat.category}</strong>`;
+            row.insertCell(0).innerText = i + 1;
+            row.insertCell(1).innerHTML = `<strong>${cat.category}</strong>`;
             let cls = 'stock-high';
             if (cat.balance <= 5) cls = 'stock-low';
             else if (cat.balance <= 10) cls = 'stock-medium';
-            row.insertCell(1).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
-            const colorCell = row.insertCell(2);
+            row.insertCell(2).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
+            const colorCell = row.insertCell(3);
             if (cat.colors.size) {
                 colorCell.innerHTML = `<div class="color-list">${Array.from(cat.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
             } else { colorCell.innerHTML = '—'; }
-            const specCell = row.insertCell(3);
+            const specCell = row.insertCell(4);
             if (cat.sizeSpecs.size) {
                 specCell.innerHTML = `<div class="spec-list">${Array.from(cat.sizeSpecs).map(s => `<span class="spec-tag">📏 ${s}</span>`).join('')}</div>`;
             } else { specCell.innerHTML = '—'; }
-            row.insertCell(4).innerText = cat.totalIn;
-            row.insertCell(5).innerText = cat.totalOut;
+            row.insertCell(5).innerText = cat.totalIn;
+            row.insertCell(6).innerText = cat.totalOut;
             let statusText = '', statusColor = '';
             if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
             else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
             else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
             else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
-            row.insertCell(6).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
-            const photoCell = row.insertCell(7);
+            row.insertCell(7).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
+            const photoCell = row.insertCell(8);
             if (cat.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${cat.lastPhoto}" onclick="showModal('${cat.lastPhoto}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
@@ -392,20 +396,22 @@
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
         const display = transactions.slice(0, 200);
-        if (!display.length) { tbody.innerHTML = '<tr><td colspan="10">No transactions<\/td></tr>'; return; }
-        for (const t of display) {
+        if (!display.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
+        for (let i = 0; i < display.length; i++) {
+            const t = display[i];
             const row = tbody.insertRow();
-            row.insertCell(0).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
-            row.insertCell(1).innerText = t.name || '-';
-            row.insertCell(2).innerText = t.department || '-';
-            row.insertCell(3).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
-            row.insertCell(4).innerText = t.itemType.length > 30 ? t.itemType.substring(0,27)+'...' : t.itemType;
-            row.insertCell(5).innerText = t.qty;
-            if (t.color) row.insertCell(6).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
-            else row.insertCell(6).innerText = '—';
-            row.insertCell(7).innerText = t.sizeSpec.length > 25 ? t.sizeSpec.substring(0,22)+'...' : (t.sizeSpec || '—');
-            row.insertCell(8).innerText = t.category;
-            const photoCell = row.insertCell(9);
+            row.insertCell(0).innerText = i + 1;
+            row.insertCell(1).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
+            row.insertCell(2).innerText = t.name || '-';
+            row.insertCell(3).innerText = t.department || '-';
+            row.insertCell(4).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
+            row.insertCell(5).innerText = t.itemType.length > 30 ? t.itemType.substring(0,27)+'...' : t.itemType;
+            row.insertCell(6).innerText = t.qty;
+            if (t.color) row.insertCell(7).innerHTML = `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(t.color)}"></span>${t.color}</span>`;
+            else row.insertCell(7).innerText = '—';
+            row.insertCell(8).innerText = t.sizeSpec.length > 25 ? t.sizeSpec.substring(0,22)+'...' : (t.sizeSpec || '—');
+            row.insertCell(9).innerText = t.category;
+            const photoCell = row.insertCell(10);
             if (t.action === 'IN' && t.photoUrl) photoCell.innerHTML = `<img class="photo-thumb" src="${t.photoUrl}" onclick="showModal('${t.photoUrl}')" onerror="this.style.display='none'">`;
             else photoCell.innerHTML = '—';
         }
@@ -450,7 +456,7 @@
     }
     
     function renderCharts() {
-        // Pie chart (left)
+        // Pie chart
         const pieLabels = categoryStock.map(c => c.category);
         const pieData = categoryStock.map(c => c.balance);
         if (pieChart) pieChart.destroy();
@@ -460,7 +466,7 @@
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} units (${((ctx.raw / pieData.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
         });
         
-        // Line chart (right)
+        // Line chart
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
