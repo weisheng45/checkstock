@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Tag Summary</title>
+    <title>Red Tag Summary – Debug Mode (all rows)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* (same styles as before – unchanged) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
         body { background: #f0f4f8; padding: 20px; }
         .dashboard { max-width: 1600px; margin: 0 auto; }
@@ -56,9 +57,7 @@
         .refresh-note:hover { color: #0e5243; }
         .sort-toggle { display: inline-flex; align-items: center; gap: 6px; background: #e0f2ef; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
         .sort-toggle:hover { background: #c8e6e0; }
-        /* Transaction table colour/spec styles */
         .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid #ddd; }
-        .color-list, .spec-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
         .color-tag, .spec-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
         .photo-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 10px; cursor: pointer; background: #f5f5f5; border: 1px solid #e0e0e0; }
         .photo-thumb:hover { transform: scale(1.1); }
@@ -69,13 +68,13 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Summary</h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Summary (Debug – all rows kept)</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
     </div>
 
-    <!-- KPI cards -->
+    <!-- KPI cards same as before -->
     <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-cubes"></i></div><div class="kpi-info"><h3>Total Stock</h3><div class="kpi-number" id="totalStock">—</div></div></div>
         <div class="kpi-card"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-info"><h3>Categories</h3><div class="kpi-number" id="uniqueItems">—</div></div></div>
@@ -101,7 +100,7 @@
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Tab (simplified) -->
+    <!-- Stock Tab -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -114,15 +113,13 @@
         </div>
         <div class="table-wrapper">
             <table id="stockTable">
-                <thead>
-                    <tr><th>No.</th><th>Category</th><th>Balance</th><th>Total IN</th><th>Total OUT</th><th>Status</th></tr>
-                </thead>
-                <tbody id="stockTableBody"><tr><td colspan="6" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <thead><tr><th>No.</th><th>Category</th><th>Balance</th><th>Total IN</th><th>Total OUT</th><th>Status</th></tr></thead>
+                <tbody id="stockTableBody"><td><td colspan="6" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
 
-    <!-- Transactions Tab (unchanged) -->
+    <!-- Transactions Tab -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -143,9 +140,7 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead>
-                    <tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr>
-                </thead>
+                <thead><tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
                 <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
@@ -171,7 +166,6 @@
         return -1;
     }
 
-    // Parse DD/MM/YYYY HH:MM:SS
     function parseDateTime(timestamp) {
         if (!timestamp) return null;
         const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
@@ -244,6 +238,7 @@
         if (colAction === -1) return [];
 
         const transactions = [];
+        let skippedCount = 0;
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
             const row = parseCSVLine(lines[i]);
@@ -280,8 +275,12 @@
                     sizeSpec: (spec && spec !== "-") ? spec : "",
                     category
                 });
+            } else {
+                skippedCount++;
+                console.warn(`Skipped row ${i+1}: type="${type}", qty=${qty}, action=${action}`);
             }
         }
+        console.log(`Parsed ${transactions.length} transactions, skipped ${skippedCount} rows.`);
         return transactions;
     }
 
@@ -307,15 +306,11 @@
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
-    const sampleTransactions = [
-        { timestamp: "10/04/2026 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
-        { timestamp: "15/04/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" }
-    ];
+    const sampleTransactions = []; // no fallback – we want to see empty if fetch fails
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="6" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheet...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<td><td colspan="6" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheet...<\/td></tr>';
         allTransactions = [];
-        // Only one sheet – your main sheet
         const SHEET_URL = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
         let loaded = false;
         try {
@@ -323,23 +318,26 @@
             if (response && response.ok) {
                 const data = await response.text();
                 const parsed = parseCSVToTransactions(data);
-                if (parsed.length) { allTransactions.push(...parsed); loaded = true; }
+                if (parsed.length) { 
+                    allTransactions.push(...parsed); 
+                    loaded = true; 
+                }
             }
         } catch(e) { console.error("Fetch error:", e); }
         
         if (!loaded || allTransactions.length === 0) {
-            console.log("Using sample data");
-            allTransactions = sampleTransactions;
-            document.getElementById('lastUpdated').innerHTML = "⚠️ Using sample data. Please publish your Google Sheet as CSV.";
-        } else {
-            const unique = new Map();
-            for (const t of allTransactions) {
-                const key = `${t.timestamp}|${t.itemType}|${t.name}|${t.action}|${t.qty}`;
-                if (!unique.has(key)) unique.set(key, t);
-            }
-            allTransactions = Array.from(unique.values());
-            document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
+            console.error("No data loaded from sheet. Please publish your Google Sheet as CSV.");
+            document.getElementById('lastUpdated').innerHTML = "❌ Failed to load data. Please publish your Google Sheet as CSV and check the URL.";
+            renderStockTable([]);
+            renderTransactionTable([]);
+            return;
         }
+        
+        // NO duplicate removal – keep all rows
+        // If you want to keep duplicates, comment the next block.
+        // For debugging, we keep all.
+        
+        console.log(`Total transactions after parsing: ${allTransactions.length}`);
         
         // Sort by datetime (DD/MM/YYYY) using custom parser
         allTransactions.sort((a, b) => {
@@ -372,6 +370,7 @@
         populateCategoryFilter();
         filterTransactionTable();
         renderCharts();
+        document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions (no duplicates removed)`;
     }
     
     function populateYearFilter() {
@@ -439,7 +438,7 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></tr>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></td>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
