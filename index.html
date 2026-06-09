@@ -141,7 +141,7 @@
         <div class="table-wrapper">
             <table id="transactionTable">
                 <thead><tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></td></tbody>
             </table>
         </div>
     </div>
@@ -166,14 +166,14 @@
         return -1;
     }
 
-    // Parse MM/DD/YYYY HH:MM:SS to Date object for sorting
+    // Parse DD/MM/YYYY HH:MM:SS to Date object for sorting
     function parseDateTime(timestamp) {
         if (!timestamp) return null;
-        // Matches: MM/DD/YYYY HH:MM:SS or MM/DD/YYYY
+        // Matches: DD/MM/YYYY HH:MM:SS or DD/MM/YYYY
         const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
         if (match) {
-            const month = parseInt(match[1]) - 1;
-            const day = parseInt(match[2]);
+            const day = parseInt(match[1]);
+            const month = parseInt(match[2]) - 1;
             const year = parseInt(match[3]);
             let hour = 0, minute = 0, second = 0;
             if (match[4]) {
@@ -318,15 +318,15 @@
     }
 
     const sampleTransactions = [
-        { timestamp: "04/10/2026 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
-        { timestamp: "04/15/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
-        { timestamp: "05/11/2026 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
-        { timestamp: "06/03/2026 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
-        { timestamp: "05/08/2025 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
+        { timestamp: "10/04/2026 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
+        { timestamp: "15/04/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
+        { timestamp: "11/05/2026 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
+        { timestamp: "03/06/2026 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
+        { timestamp: "08/05/2025 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<td><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td><tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td><tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=316845579";
@@ -359,7 +359,7 @@
             document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
         }
         
-        // Sort by datetime (using custom parser for MM/DD/YYYY)
+        // Sort by datetime (DD/MM/YYYY) using custom parser
         allTransactions.sort((a, b) => {
             const dateA = parseDateTime(a.timestamp);
             const dateB = parseDateTime(b.timestamp);
@@ -433,7 +433,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<td><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -468,12 +468,11 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></td>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
-            // Display original timestamp (including time)
             row.insertCell(1).innerText = t.timestamp || 'Unknown';
             row.insertCell(2).innerText = t.name || '-';
             row.insertCell(3).innerText = t.department || '-';
@@ -546,7 +545,7 @@
                 return 0;
             });
         } else {
-            // Date sort using parseDateTime (MM/DD/YYYY with time)
+            // Date sort using parseDateTime (DD/MM/YYYY with time)
             filtered.sort((a, b) => {
                 const dateA = parseDateTime(a.timestamp);
                 const dateB = parseDateTime(b.timestamp);
