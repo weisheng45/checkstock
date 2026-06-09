@@ -467,53 +467,47 @@
         renderStockTable(filtered);
     }
 
-    function filterTransactionTable() {
-        const action = document.getElementById('actionFilter').value;
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-        const category = document.getElementById('categoryFilter').value;
-        const yearFilter = document.getElementById('yearFilter').value;
+function filterTransactionTable() {
+    const action = document.getElementById('actionFilter').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const category = document.getElementById('categoryFilter').value;
+    const yearFilter = document.getElementById('yearFilter').value;
 
-        let filtered = [...allTransactions];
+    let filtered = [...allTransactions];
 
-        if (action !== 'ALL') filtered = filtered.filter(t => t.action === action);
-        if (category !== 'ALL') filtered = filtered.filter(t => t.category === category);
-        if (yearFilter !== 'ALL') {
-            filtered = filtered.filter(t => {
-                const year = extractYearFromTimestamp(t.timestamp);
-                return year && year.toString() === yearFilter;
-            });
-        }
-
-        if (searchTerm !== "") {
-            filtered = filtered.filter(t => {
-                return (t.name && t.name.toLowerCase().includes(searchTerm)) ||
-                       (t.department && t.department.toLowerCase().includes(searchTerm)) ||
-                       (t.itemType && t.itemType.toLowerCase().includes(searchTerm)) ||
-                       (t.color && t.color.toLowerCase().includes(searchTerm)) ||
-                       (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
-            });
-            filtered.sort((a, b) => {
-                const aName = a.name && a.name.toLowerCase().includes(searchTerm);
-                const bName = b.name && b.name.toLowerCase().includes(searchTerm);
-                if (aName !== bName) return aName ? -1 : 1;
-                const aType = a.itemType && a.itemType.toLowerCase().includes(searchTerm);
-                const bType = b.itemType && b.itemType.toLowerCase().includes(searchTerm);
-                if (aType !== bType) return aType ? -1 : 1;
-                return 0;
-            });
-        } else {
-            filtered.sort((a, b) => {
-                const dateA = parseDateTime(a.timestamp);
-                const dateB = parseDateTime(b.timestamp);
-                if (!dateA && !dateB) return 0;
-                if (!dateA) return 1;
-                if (!dateB) return -1;
-                return sortDescending ? dateB - dateA : dateA - dateB;
-            });
-        }
-        renderTransactionTable(filtered);
+    // 1. Apply filters
+    if (action !== 'ALL') filtered = filtered.filter(t => t.action === action);
+    if (category !== 'ALL') filtered = filtered.filter(t => t.category === category);
+    if (yearFilter !== 'ALL') {
+        filtered = filtered.filter(t => {
+            const year = extractYearFromTimestamp(t.timestamp);
+            return year && year.toString() === yearFilter;
+        });
     }
 
+    // 2. Apply search filter (keep only rows that match)
+    if (searchTerm !== "") {
+        filtered = filtered.filter(t => {
+            return (t.name && t.name.toLowerCase().includes(searchTerm)) ||
+                   (t.department && t.department.toLowerCase().includes(searchTerm)) ||
+                   (t.itemType && t.itemType.toLowerCase().includes(searchTerm)) ||
+                   (t.color && t.color.toLowerCase().includes(searchTerm)) ||
+                   (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
+        });
+    }
+
+    // 3. Always sort by date, using the current sortDescending flag
+    filtered.sort((a, b) => {
+        const dateA = parseDateTime(a.timestamp);
+        const dateB = parseDateTime(b.timestamp);
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return sortDescending ? dateB - dateA : dateA - dateB;
+    });
+
+    renderTransactionTable(filtered);
+}
     function renderCharts() {
         const pieLabels = categoryStock.map(c => c.category);
         const pieData = categoryStock.map(c => c.balance);
