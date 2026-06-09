@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Tag Summary </title>
+    <title>Red Tag Summary</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -68,7 +68,7 @@
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Summary </h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Summary</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -114,7 +114,7 @@
         <div class="table-wrapper">
             <table id="stockTable">
                 <thead><tr><th>No.</th><th>Category</th><th>Balance</th><th>Colors</th><th>Sizes / Specs</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td><tr></tbody>
             </table>
         </div>
     </div>
@@ -140,7 +140,7 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
+                <thead><td><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
                 <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
@@ -164,6 +164,29 @@
             if (idx !== -1) return idx;
         }
         return -1;
+    }
+
+    function extractYearFromTimestamp(timestamp) {
+        if (!timestamp) return null;
+        
+        // Try to extract 4-digit year using regex
+        const yearMatch = timestamp.match(/\b(20\d{2})\b/);
+        if (yearMatch) {
+            return parseInt(yearMatch[1]);
+        }
+        
+        // Try parsing as date
+        try {
+            const date = new Date(timestamp);
+            if (!isNaN(date.getTime())) {
+                const year = date.getFullYear();
+                if (year >= 2000 && year <= 2100) {
+                    return year;
+                }
+            }
+        } catch(e) {}
+        
+        return null;
     }
 
     function convertDriveToImage(url) {
@@ -333,7 +356,12 @@
         }
         
         // Apply default sort (latest first) to allTransactions
-        allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        allTransactions.sort((a, b) => {
+            const yearA = extractYearFromTimestamp(a.timestamp);
+            const yearB = extractYearFromTimestamp(b.timestamp);
+            if (yearA && yearB) return yearB - yearA;
+            return 0;
+        });
         
         categoryStock = computeCategoryStock(allTransactions);
         
@@ -355,41 +383,42 @@
         }
         
         renderStockTable(categoryStock);
-        populateYearFilter();  // Populate years BEFORE rendering transactions
+        populateYearFilter();
         populateCategoryFilter();
-        filterTransactionTable();  // Now render transactions with all filters
+        filterTransactionTable();
         renderCharts();
     }
     
     function populateYearFilter() {
         const years = new Set();
         for (const t of allTransactions) {
-            if (t.timestamp) {
-                // Try parsing the timestamp - handle different formats
-                let date;
-                // Check if timestamp is a number (Excel serial) or string
-                if (typeof t.timestamp === 'number') {
-                    date = new Date((t.timestamp - 25569) * 86400 * 1000);
-                } else {
-                    date = new Date(t.timestamp);
-                }
-                if (!isNaN(date.getTime())) {
-                    const year = date.getFullYear();
-                    if (year && year > 2000 && year < 2100) {  // Valid year range
-                        years.add(year);
-                    }
-                }
+            const year = extractYearFromTimestamp(t.timestamp);
+            if (year) {
+                years.add(year);
             }
         }
-        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        
+        // Also check if any timestamp contains 2025 or 2026
         const yearSelect = document.getElementById('yearFilter');
         yearSelect.innerHTML = '<option value="ALL">All Years</option>';
+        
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
         sortedYears.forEach(year => {
             yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
         });
         
-        // If no years found, add current year as fallback
-        if (sortedYears.length === 0) {
+        // If we have no years from extraction, check for 2025 and 2026 directly from timestamps
+        if (sortedYears.length === 0 && allTransactions.length > 0) {
+            if (allTransactions.some(t => t.timestamp && t.timestamp.includes('2025'))) {
+                yearSelect.innerHTML += `<option value="2025">2025</option>`;
+            }
+            if (allTransactions.some(t => t.timestamp && t.timestamp.includes('2026'))) {
+                yearSelect.innerHTML += `<option value="2026">2026</option>`;
+            }
+        }
+        
+        // If still no years found, add current year as fallback
+        if (yearSelect.options.length === 1) {
             const currentYear = new Date().getFullYear();
             yearSelect.innerHTML += `<option value="${currentYear}">${currentYear}</option>`;
         }
@@ -419,7 +448,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<td><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -454,22 +483,29 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></table>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
+            
             // Format date nicely
             let dateStr = 'Unknown';
             if (t.timestamp) {
                 try {
-                    const d = new Date(t.timestamp);
-                    if (!isNaN(d.getTime())) {
-                        dateStr = d.toLocaleString('en-MY', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    // Try to extract date parts
+                    const dateMatch = t.timestamp.match(/(\d{4})-(\d{2})-(\d{2})/);
+                    if (dateMatch) {
+                        dateStr = `${dateMatch[3]}/${dateMatch[2]}/${dateMatch[1]}`;
                     } else {
-                        dateStr = t.timestamp.substring(0, 16).replace('T', ' ');
+                        const d = new Date(t.timestamp);
+                        if (!isNaN(d.getTime())) {
+                            dateStr = d.toLocaleString('en-MY', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                        } else {
+                            dateStr = t.timestamp.substring(0, 16).replace('T', ' ');
+                        }
                     }
-                } catch(e) { dateStr = t.timestamp.substring(0, 16); }
+                } catch(e) { dateStr = t.timestamp; }
             }
             row.insertCell(1).innerText = dateStr;
             row.insertCell(2).innerText = t.name || '-';
@@ -513,35 +549,23 @@
         const category = document.getElementById('categoryFilter').value;
         const yearFilter = document.getElementById('yearFilter').value;
         
-        let filtered = [...allTransactions];  // Start with a copy
+        let filtered = [...allTransactions];
         
-        // Apply action filter
         if (action !== 'ALL') {
             filtered = filtered.filter(t => t.action === action);
         }
         
-        // Apply category filter
         if (category !== 'ALL') {
             filtered = filtered.filter(t => t.category === category);
         }
         
-        // Apply year filter
         if (yearFilter !== 'ALL') {
             filtered = filtered.filter(t => {
-                if (!t.timestamp) return false;
-                try {
-                    const date = new Date(t.timestamp);
-                    if (!isNaN(date.getTime())) {
-                        return date.getFullYear().toString() === yearFilter;
-                    }
-                    // Try parsing timestamp string
-                    const yearMatch = t.timestamp.match(/(\d{4})/);
-                    return yearMatch && yearMatch[1] === yearFilter;
-                } catch(e) { return false; }
+                const year = extractYearFromTimestamp(t.timestamp);
+                return year && year.toString() === yearFilter;
             });
         }
         
-        // Apply search filter
         if (searchTerm !== "") {
             filtered = filtered.filter(t => {
                 return (t.name && t.name.toLowerCase().includes(searchTerm)) ||
@@ -551,7 +575,6 @@
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
             
-            // Sort by relevance: Name matches first, then Item Type
             filtered.sort((a, b) => {
                 const aName = a.name && a.name.toLowerCase().includes(searchTerm);
                 const bName = b.name && b.name.toLowerCase().includes(searchTerm);
@@ -562,14 +585,11 @@
                 return 0;
             });
         } else {
-            // Apply date sorting when no search term
             filtered.sort((a, b) => {
-                const dateA = new Date(a.timestamp);
-                const dateB = new Date(b.timestamp);
-                if (isNaN(dateA.getTime())) return 1;
-                if (isNaN(dateB.getTime())) return -1;
-                if (sortDescending) return dateB - dateA;
-                else return dateA - dateB;
+                const yearA = extractYearFromTimestamp(a.timestamp) || 0;
+                const yearB = extractYearFromTimestamp(b.timestamp) || 0;
+                if (sortDescending) return yearB - yearA;
+                else return yearA - yearB;
             });
         }
         
@@ -619,7 +639,7 @@
         const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.dataset.tab === tabId);
         if (activeBtn) activeBtn.classList.add('active');
         if (tabId === 'transactions') {
-            filterTransactionTable();  // Refresh when switching to transactions tab
+            filterTransactionTable();
         }
     }
     
