@@ -106,9 +106,8 @@
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
             <select id="stockStatusFilter" onchange="filterStockTable()">
                 <option value="ALL">All Status</option>
-                <option value="critical">🔴 Critical (&lt;5)</option>
-                <option value="low">🟠 Low (5-10)</option>
-                <option value="normal">✅ Normal (&gt;10)</option>
+                <option value="low">🔴 Low (<5)</option>
+                <option value="normal">✅ Normal (≥5)</option>
             </select>
         </div>
         <div class="table-wrapper">
@@ -386,22 +385,13 @@
         
         categoryStock = computeCategoryStock(allTransactions);
         
-        const totalStock = categoryStock.reduce((s,c) => s + c.balance, 0);
-        const lowItems = categoryStock.filter(c => c.balance <= 10);
-        const critical = lowItems.filter(c => c.balance < 5);
-        const totalTransactions = allTransactions.length;
-        
-        document.getElementById('totalStock').innerText = totalStock;
-        document.getElementById('uniqueItems').innerText = categoryStock.length;
-        document.getElementById('totalTransactions').innerText = totalTransactions;
-        document.getElementById('lowStockCount').innerHTML = `<span style="color:#e74c3c">${lowItems.length}</span> / ${critical.length}`;
-        
         if (lowItems.length) {
             document.getElementById('alertPanel').style.display = 'flex';
-            document.getElementById('alertCount').innerText = `${lowItems.length} low (${critical.length} critical)`;
+            document.getElementById('alertCount').innerText = `${lowItems.length} low stock`;
         } else {
             document.getElementById('alertPanel').style.display = 'none';
         }
+    
         
         renderStockTable(categoryStock);
         populateYearFilter();
@@ -458,17 +448,18 @@
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
             row.insertCell(1).innerHTML = `<strong>${cat.category}</strong>`;
-            let cls = 'stock-high';
-            if (cat.balance <= 5) cls = 'stock-low';
-            else if (cat.balance <= 10) cls = 'stock-medium';
+            let cls = (cat.balance < 5) ? 'stock-low' : 'stock-high';
             row.insertCell(2).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
             row.insertCell(3).innerText = cat.totalIn;
             row.insertCell(4).innerText = cat.totalOut;
             let statusText = '', statusColor = '';
-            if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
-            else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
-            else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
-            else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
+if (cat.balance < 5) {
+    statusText = '🔴 LOW';
+    statusColor = '#e74c3c';
+} else {
+    statusText = '✅ NORMAL';
+    statusColor = '#1e6f5c';
+}
             row.insertCell(5).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
         }
     }
@@ -509,9 +500,8 @@
         const status = document.getElementById('stockStatusFilter').value;
         let filtered = categoryStock.filter(cat => {
             if (search && !cat.category.toLowerCase().includes(search)) return false;
-            if (status === 'critical' && cat.balance >= 5) return false;
-            if (status === 'low' && (cat.balance < 5 || cat.balance > 10)) return false;
-            if (status === 'normal' && cat.balance <= 10) return false;
+            if (status === 'low' && cat.balance >= 5) return false;
+            if (status === 'normal' && cat.balance < 5) return false;
             return true;
         });
         renderStockTable(filtered);
