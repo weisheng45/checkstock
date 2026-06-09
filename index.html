@@ -114,7 +114,7 @@
         <div class="table-wrapper">
             <table id="stockTable">
                 <thead><tr><th>No.</th><th>Category</th><th>Balance</th><th>Colors</th><th>Sizes / Specs</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td><tr></tbody>
+                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -140,8 +140,8 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><td><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></td></tbody>
             </table>
         </div>
     </div>
@@ -166,27 +166,73 @@
         return -1;
     }
 
+    // Parse date from MM/DD/YYYY or MM/DD/YYYY HH:MM:SS format
+    function parseDateFromTimestamp(timestamp) {
+        if (!timestamp) return null;
+        
+        // Try to parse MM/DD/YYYY format
+        const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (match) {
+            const month = parseInt(match[1]) - 1;
+            const day = parseInt(match[2]);
+            const year = parseInt(match[3]);
+            return new Date(year, month, day);
+        }
+        
+        // Fallback to standard Date parsing
+        try {
+            const date = new Date(timestamp);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
+        } catch(e) {}
+        
+        return null;
+    }
+
     function extractYearFromTimestamp(timestamp) {
         if (!timestamp) return null;
         
-        // Try to extract 4-digit year using regex
+        // Try MM/DD/YYYY format first
+        const mmddyyyyMatch = timestamp.match(/\/(\d{4})/);
+        if (mmddyyyyMatch) {
+            return parseInt(mmddyyyyMatch[1]);
+        }
+        
+        // Try to find any 4-digit year
         const yearMatch = timestamp.match(/\b(20\d{2})\b/);
         if (yearMatch) {
             return parseInt(yearMatch[1]);
         }
         
-        // Try parsing as date
+        return null;
+    }
+
+    function formatDateForDisplay(timestamp) {
+        if (!timestamp) return 'Unknown';
+        
+        // Try MM/DD/YYYY format first
+        const mmddyyyyMatch = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (mmddyyyyMatch) {
+            const month = mmddyyyyMatch[1].padStart(2, '0');
+            const day = mmddyyyyMatch[2].padStart(2, '0');
+            const year = mmddyyyyMatch[3];
+            return `${day}/${month}/${year}`;
+        }
+        
+        // Try parsing as date object
         try {
             const date = new Date(timestamp);
             if (!isNaN(date.getTime())) {
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
                 const year = date.getFullYear();
-                if (year >= 2000 && year <= 2100) {
-                    return year;
-                }
+                return `${day}/${month}/${year}`;
             }
         } catch(e) {}
         
-        return null;
+        // Return original if cannot parse
+        return timestamp.substring(0, 16).replace('T', ' ');
     }
 
     function convertDriveToImage(url) {
@@ -314,11 +360,11 @@
     }
 
     const sampleTransactions = [
-        { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
-        { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
-        { timestamp: "2026-05-11 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
-        { timestamp: "2026-06-03 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
-        { timestamp: "2025-05-08 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
+        { timestamp: "04/10/2026 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
+        { timestamp: "04/15/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
+        { timestamp: "05/11/2026 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
+        { timestamp: "06/03/2026 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
+        { timestamp: "05/08/2025 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
     ];
 
     async function loadAllData() {
@@ -355,12 +401,14 @@
             document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
         }
         
-        // Apply default sort (latest first) to allTransactions
+        // Sort by date (using MM/DD/YYYY format)
         allTransactions.sort((a, b) => {
-            const yearA = extractYearFromTimestamp(a.timestamp);
-            const yearB = extractYearFromTimestamp(b.timestamp);
-            if (yearA && yearB) return yearB - yearA;
-            return 0;
+            const dateA = parseDateFromTimestamp(a.timestamp);
+            const dateB = parseDateFromTimestamp(b.timestamp);
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateB - dateA;
         });
         
         categoryStock = computeCategoryStock(allTransactions);
@@ -398,7 +446,6 @@
             }
         }
         
-        // Also check if any timestamp contains 2025 or 2026
         const yearSelect = document.getElementById('yearFilter');
         yearSelect.innerHTML = '<option value="ALL">All Years</option>';
         
@@ -407,7 +454,6 @@
             yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
         });
         
-        // If we have no years from extraction, check for 2025 and 2026 directly from timestamps
         if (sortedYears.length === 0 && allTransactions.length > 0) {
             if (allTransactions.some(t => t.timestamp && t.timestamp.includes('2025'))) {
                 yearSelect.innerHTML += `<option value="2025">2025</option>`;
@@ -417,7 +463,6 @@
             }
         }
         
-        // If still no years found, add current year as fallback
         if (yearSelect.options.length === 1) {
             const currentYear = new Date().getFullYear();
             yearSelect.innerHTML += `<option value="${currentYear}">${currentYear}</option>`;
@@ -448,7 +493,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<td><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -483,31 +528,12 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></table>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></tr>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
-            
-            // Format date nicely
-            let dateStr = 'Unknown';
-            if (t.timestamp) {
-                try {
-                    // Try to extract date parts
-                    const dateMatch = t.timestamp.match(/(\d{4})-(\d{2})-(\d{2})/);
-                    if (dateMatch) {
-                        dateStr = `${dateMatch[3]}/${dateMatch[2]}/${dateMatch[1]}`;
-                    } else {
-                        const d = new Date(t.timestamp);
-                        if (!isNaN(d.getTime())) {
-                            dateStr = d.toLocaleString('en-MY', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-                        } else {
-                            dateStr = t.timestamp.substring(0, 16).replace('T', ' ');
-                        }
-                    }
-                } catch(e) { dateStr = t.timestamp; }
-            }
-            row.insertCell(1).innerText = dateStr;
+            row.insertCell(1).innerText = formatDateForDisplay(t.timestamp);
             row.insertCell(2).innerText = t.name || '-';
             row.insertCell(3).innerText = t.department || '-';
             row.insertCell(4).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
@@ -586,10 +612,12 @@
             });
         } else {
             filtered.sort((a, b) => {
-                const yearA = extractYearFromTimestamp(a.timestamp) || 0;
-                const yearB = extractYearFromTimestamp(b.timestamp) || 0;
-                if (sortDescending) return yearB - yearA;
-                else return yearA - yearB;
+                const dateA = parseDateFromTimestamp(a.timestamp);
+                const dateB = parseDateFromTimestamp(b.timestamp);
+                if (!dateA && !dateB) return 0;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return sortDescending ? dateB - dateA : dateA - dateB;
             });
         }
         
@@ -608,9 +636,9 @@
         
         const monthMap = new Map();
         allTransactions.forEach(t => {
-            let d = new Date(t.timestamp);
-            if (!isNaN(d.getTime())) {
-                let ym = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+            const date = parseDateFromTimestamp(t.timestamp);
+            if (date && !isNaN(date.getTime())) {
+                let ym = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}`;
                 let cur = monthMap.get(ym) || { in:0, out:0 };
                 if (t.action === 'IN') cur.in += t.qty;
                 else cur.out += t.qty;
