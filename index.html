@@ -140,8 +140,8 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></td></tbody>
+                <thead><tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -166,73 +166,31 @@
         return -1;
     }
 
-    // Parse date from MM/DD/YYYY or MM/DD/YYYY HH:MM:SS format
-    function parseDateFromTimestamp(timestamp) {
+    // Parse MM/DD/YYYY HH:MM:SS to Date object for sorting
+    function parseDateTime(timestamp) {
         if (!timestamp) return null;
-        
-        // Try to parse MM/DD/YYYY format
-        const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        // Matches: MM/DD/YYYY HH:MM:SS or MM/DD/YYYY
+        const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
         if (match) {
             const month = parseInt(match[1]) - 1;
             const day = parseInt(match[2]);
             const year = parseInt(match[3]);
-            return new Date(year, month, day);
-        }
-        
-        // Fallback to standard Date parsing
-        try {
-            const date = new Date(timestamp);
-            if (!isNaN(date.getTime())) {
-                return date;
+            let hour = 0, minute = 0, second = 0;
+            if (match[4]) {
+                hour = parseInt(match[4]);
+                minute = parseInt(match[5]);
+                second = parseInt(match[6]);
             }
-        } catch(e) {}
-        
-        return null;
+            return new Date(year, month, day, hour, minute, second);
+        }
+        // Fallback
+        return new Date(timestamp);
     }
 
     function extractYearFromTimestamp(timestamp) {
         if (!timestamp) return null;
-        
-        // Try MM/DD/YYYY format first
-        const mmddyyyyMatch = timestamp.match(/\/(\d{4})/);
-        if (mmddyyyyMatch) {
-            return parseInt(mmddyyyyMatch[1]);
-        }
-        
-        // Try to find any 4-digit year
-        const yearMatch = timestamp.match(/\b(20\d{2})\b/);
-        if (yearMatch) {
-            return parseInt(yearMatch[1]);
-        }
-        
-        return null;
-    }
-
-    function formatDateForDisplay(timestamp) {
-        if (!timestamp) return 'Unknown';
-        
-        // Try MM/DD/YYYY format first
-        const mmddyyyyMatch = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        if (mmddyyyyMatch) {
-            const month = mmddyyyyMatch[1].padStart(2, '0');
-            const day = mmddyyyyMatch[2].padStart(2, '0');
-            const year = mmddyyyyMatch[3];
-            return `${day}/${month}/${year}`;
-        }
-        
-        // Try parsing as date object
-        try {
-            const date = new Date(timestamp);
-            if (!isNaN(date.getTime())) {
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const year = date.getFullYear();
-                return `${day}/${month}/${year}`;
-            }
-        } catch(e) {}
-        
-        // Return original if cannot parse
-        return timestamp.substring(0, 16).replace('T', ' ');
+        const match = timestamp.match(/(\d{4})/);
+        return match ? parseInt(match[1]) : null;
     }
 
     function convertDriveToImage(url) {
@@ -350,7 +308,7 @@
                 if (t.color) existing.colors.add(t.color);
                 if (t.sizeSpec) existing.sizeSpecs.add(t.sizeSpec);
             }
-            if (!existing.lastTimestamp || new Date(t.timestamp) > new Date(existing.lastTimestamp)) {
+            if (!existing.lastTimestamp || parseDateTime(t.timestamp) > parseDateTime(existing.lastTimestamp)) {
                 existing.lastTimestamp = t.timestamp;
                 if (t.photoUrl) existing.lastPhoto = t.photoUrl;
             }
@@ -368,7 +326,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<td><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td><tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=316845579";
@@ -401,13 +359,10 @@
             document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
         }
         
-        // Sort by date (using MM/DD/YYYY format)
+        // Sort by datetime (using custom parser for MM/DD/YYYY)
         allTransactions.sort((a, b) => {
-            const dateA = parseDateFromTimestamp(a.timestamp);
-            const dateB = parseDateFromTimestamp(b.timestamp);
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
+            const dateA = parseDateTime(a.timestamp);
+            const dateB = parseDateTime(b.timestamp);
             return dateB - dateA;
         });
         
@@ -441,29 +396,14 @@
         const years = new Set();
         for (const t of allTransactions) {
             const year = extractYearFromTimestamp(t.timestamp);
-            if (year) {
-                years.add(year);
-            }
+            if (year) years.add(year);
         }
-        
         const yearSelect = document.getElementById('yearFilter');
         yearSelect.innerHTML = '<option value="ALL">All Years</option>';
-        
-        const sortedYears = Array.from(years).sort((a, b) => b - a);
-        sortedYears.forEach(year => {
+        Array.from(years).sort((a,b)=>b-a).forEach(year => {
             yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
         });
-        
-        if (sortedYears.length === 0 && allTransactions.length > 0) {
-            if (allTransactions.some(t => t.timestamp && t.timestamp.includes('2025'))) {
-                yearSelect.innerHTML += `<option value="2025">2025</option>`;
-            }
-            if (allTransactions.some(t => t.timestamp && t.timestamp.includes('2026'))) {
-                yearSelect.innerHTML += `<option value="2026">2026</option>`;
-            }
-        }
-        
-        if (yearSelect.options.length === 1) {
+        if (years.size === 0 && allTransactions.length > 0) {
             const currentYear = new Date().getFullYear();
             yearSelect.innerHTML += `<option value="${currentYear}">${currentYear}</option>`;
         }
@@ -493,7 +433,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<td><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -533,7 +473,8 @@
             const t = transactions[i];
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
-            row.insertCell(1).innerText = formatDateForDisplay(t.timestamp);
+            // Display original timestamp (including time)
+            row.insertCell(1).innerText = t.timestamp || 'Unknown';
             row.insertCell(2).innerText = t.name || '-';
             row.insertCell(3).innerText = t.department || '-';
             row.insertCell(4).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
@@ -577,14 +518,8 @@
         
         let filtered = [...allTransactions];
         
-        if (action !== 'ALL') {
-            filtered = filtered.filter(t => t.action === action);
-        }
-        
-        if (category !== 'ALL') {
-            filtered = filtered.filter(t => t.category === category);
-        }
-        
+        if (action !== 'ALL') filtered = filtered.filter(t => t.action === action);
+        if (category !== 'ALL') filtered = filtered.filter(t => t.category === category);
         if (yearFilter !== 'ALL') {
             filtered = filtered.filter(t => {
                 const year = extractYearFromTimestamp(t.timestamp);
@@ -600,7 +535,7 @@
                        (t.color && t.color.toLowerCase().includes(searchTerm)) ||
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
-            
+            // Relevance sort
             filtered.sort((a, b) => {
                 const aName = a.name && a.name.toLowerCase().includes(searchTerm);
                 const bName = b.name && b.name.toLowerCase().includes(searchTerm);
@@ -611,9 +546,10 @@
                 return 0;
             });
         } else {
+            // Date sort using parseDateTime (MM/DD/YYYY with time)
             filtered.sort((a, b) => {
-                const dateA = parseDateFromTimestamp(a.timestamp);
-                const dateB = parseDateFromTimestamp(b.timestamp);
+                const dateA = parseDateTime(a.timestamp);
+                const dateB = parseDateTime(b.timestamp);
                 if (!dateA && !dateB) return 0;
                 if (!dateA) return 1;
                 if (!dateB) return -1;
@@ -636,7 +572,7 @@
         
         const monthMap = new Map();
         allTransactions.forEach(t => {
-            const date = parseDateFromTimestamp(t.timestamp);
+            const date = parseDateTime(t.timestamp);
             if (date && !isNaN(date.getTime())) {
                 let ym = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}`;
                 let cur = monthMap.get(ym) || { in:0, out:0 };
@@ -666,9 +602,7 @@
         document.getElementById(`${tabId}Tab`).classList.add('active');
         const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.dataset.tab === tabId);
         if (activeBtn) activeBtn.classList.add('active');
-        if (tabId === 'transactions') {
-            filterTransactionTable();
-        }
+        if (tabId === 'transactions') filterTransactionTable();
     }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
