@@ -215,74 +215,112 @@
         return result;
     }
 
-    function parseCSVToTransactions(csvText) {
-        const lines = csvText.split(/\r?\n/);
-        if (lines.length < 2) return [];
-        const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
-        
-        const colAction = findColumn(headers, ["Please select action", "action"]);
-        const colTypeIn = findColumn(headers, ["Types (IN)", "type in"]);
-        const colQtyIn = findColumn(headers, ["Qty (IN)", "qty in"]);
-        const colTypeOut = findColumn(headers, ["Types (OUT)", "type out"]);
-        const colQtyOut = findColumn(headers, ["Qty (OUT)", "qty out"]);
-        const colPhoto = findColumn(headers, ["Photo", "photo"]);
-        const colCategory = findColumn(headers, ["Categories", "categories"]);
-        const colTimestamp = findColumn(headers, ["Timestamp", "timestamp"]);
-        const colName = findColumn(headers, ["Name", "name"]);
-        const colDept = findColumn(headers, ["Department", "department"]);
-        const colColorIn = findColumn(headers, ["Color (IN)", "color (in)", "Color (IN) - if available"]);
-        const colColorOut = findColumn(headers, ["Color (OUT)", "color (out)", "Color (OUT) - if available"]);
-        const colSpecIn = findColumn(headers, ["Sizes / Specs (IN)", "sizes / specs (in)", "Sizes / Specs (IN) - if available"]);
-        const colSpecOut = findColumn(headers, ["Sizes / Specs (OUT)", "sizes / specs (out)", "Sizes / Specs (OUT) - if available"]);
-        
-        if (colAction === -1) return [];
+   function parseCSVToTransactions(csvText) {
+    const lines = csvText.split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
 
-        const transactions = [];
-        let skippedCount = 0;
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            const row = parseCSVLine(lines[i]);
-            if (row.length < headers.length) continue;
-            const action = (row[colAction] || "").toUpperCase();
-            if (action !== "IN" && action !== "OUT") continue;
-            
-            let type = "", qty = 0, photo = "", color = "", spec = "";
-            let category = (colCategory !== -1 ? row[colCategory] : "Uncategorized") || "Uncategorized";
-            let timestamp = colTimestamp !== -1 ? row[colTimestamp] : "";
-            let name = colName !== -1 ? row[colName] : "";
-            let dept = colDept !== -1 ? row[colDept] : "";
-            
-            if (action === "IN") {
-                type = (colTypeIn !== -1 ? row[colTypeIn] : "");
-                qty = parseFloat((colQtyIn !== -1 ? row[colQtyIn] : 0)) || 0;
-                photo = (colPhoto !== -1 ? row[colPhoto] : "");
-                color = (colColorIn !== -1 ? row[colColorIn] : "");
-                spec = (colSpecIn !== -1 ? row[colSpecIn] : "");
-            } else {
-                type = (colTypeOut !== -1 ? row[colTypeOut] : "");
-                qty = parseFloat((colQtyOut !== -1 ? row[colQtyOut] : 0)) || 0;
-                color = (colColorOut !== -1 ? row[colColorOut] : "");
-                spec = (colSpecOut !== -1 ? row[colSpecOut] : "");
-            }
-            
-            if (type && qty > 0) {
-                transactions.push({
-                    timestamp, name, department: dept, action,
-                    itemType: type,
-                    qty,
-                    photoUrl: convertDriveToImage(photo),
-                    color: (color && color !== "-" && color !== "N/A") ? color : "",
-                    sizeSpec: (spec && spec !== "-") ? spec : "",
-                    category
-                });
-            } else {
-                skippedCount++;
-                console.warn(`Skipped row ${i+1}: type="${type}", qty=${qty}, action=${action}`);
-            }
+    // ----- Helper to find column by multiple possible names -----
+    function findCol(names) {
+        for (let name of names) {
+            let idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+            if (idx !== -1) return idx;
         }
-        console.log(`Parsed ${transactions.length} transactions, skipped ${skippedCount} rows.`);
-        return transactions;
+        return -1;
     }
+
+    // ----- Core column detection (flexible) -----
+    const colAction      = findCol(["Please select action", "action", "in/out"]);
+    const colTimestamp   = findCol(["Timestamp", "date", "date & time"]);
+    const colName        = findCol(["Name", "nama"]);
+    const colDept        = findCol(["Department", "dept", "dc"]);
+    const colCategory    = findCol(["Categories", "category"]);
+    const colPhoto       = findCol(["Photo", "foto", "image"]);
+
+    // Generic item & quantity (fallback when IN/OUT specific columns are missing)
+    const colGenericItem = findCol(["Item", "item type", "types", "item name"]);
+    const colGenericQty  = findCol(["Qty", "quantity", "jumlah"]);
+
+    // Action-specific columns (still checked first)
+    const colTypeIn      = findCol(["Types (IN)", "type in"]);
+    const colQtyIn       = findCol(["Qty (IN)", "qty in"]);
+    const colTypeOut     = findCol(["Types (OUT)", "type out"]);
+    const colQtyOut      = findCol(["Qty (OUT)", "qty out"]);
+
+    // Colour & dimension (generic + specific)
+    const colColorIn     = findCol(["Color (IN)", "color (in)"]);
+    const colColorOut    = findCol(["Color (OUT)", "color (out)"]);
+    const colGenericColor = findCol(["Color", "colour"]);
+    const colSpecIn      = findCol(["Sizes / Specs (IN)", "sizes / specs (in)"]);
+    const colSpecOut     = findCol(["Sizes / Specs (OUT)", "sizes / specs (out)"]);
+    const colDimension   = findCol(["Dimension", "spec", "size", "ukuran"]);
+
+    if (colAction === -1) {
+        console.error("No 'Action' column found. Please check CSV headers.");
+        return [];
+    }
+
+    const transactions = [];
+    for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const row = parseCSVLine(lines[i]);
+        if (row.length < headers.length) continue;
+
+        const action = (row[colAction] || "").toUpperCase();
+        if (action !== "IN" && action !== "OUT") continue;
+
+        // ----- Determine item type -----
+        let type = "";
+        if (action === "IN" && colTypeIn !== -1) type = row[colTypeIn];
+        else if (action === "OUT" && colTypeOut !== -1) type = row[colTypeOut];
+        if (!type && colGenericItem !== -1) type = row[colGenericItem];   // fallback to generic "Item"
+
+        // ----- Determine quantity (default to 1 if missing) -----
+        let qty = 0;
+        if (action === "IN" && colQtyIn !== -1) qty = parseFloat(row[colQtyIn]) || 0;
+        else if (action === "OUT" && colQtyOut !== -1) qty = parseFloat(row[colQtyOut]) || 0;
+        if (qty === 0 && colGenericQty !== -1) qty = parseFloat(row[colGenericQty]) || 0;
+        if (qty === 0) qty = 1;   // 👈 crucial: show rows even if no quantity provided
+
+        // ----- Colour (priority: IN/OUT specific > generic Color) -----
+        let color = "";
+        if (action === "IN" && colColorIn !== -1) color = row[colColorIn];
+        else if (action === "OUT" && colColorOut !== -1) color = row[colColorOut];
+        if (!color && colGenericColor !== -1) color = row[colGenericColor];
+        if (color === "-" || color === "N/A") color = "";
+
+        // ----- Size / Spec (priority: IN/OUT spec > Dimension) -----
+        let spec = "";
+        if (action === "IN" && colSpecIn !== -1) spec = row[colSpecIn];
+        else if (action === "OUT" && colSpecOut !== -1) spec = row[colSpecOut];
+        if (!spec && colDimension !== -1) spec = row[colDimension];
+        if (spec === "-") spec = "";
+
+        // ----- Other fields -----
+        let timestamp = colTimestamp !== -1 ? row[colTimestamp] : "";
+        let name      = colName !== -1 ? row[colName] : "";
+        let dept      = colDept !== -1 ? row[colDept] : "";
+        let category  = (colCategory !== -1 ? row[colCategory] : "Uncategorized") || "Uncategorized";
+        let photoUrl  = convertDriveToImage(colPhoto !== -1 ? row[colPhoto] : "");
+
+        // Only add if we have at least a type or a meaningful item name
+        if (type || (colGenericItem !== -1 && row[colGenericItem])) {
+            transactions.push({
+                timestamp, name, department: dept, action,
+                itemType: type || (colGenericItem !== -1 ? row[colGenericItem] : "?"),
+                qty,
+                photoUrl,
+                color,
+                sizeSpec: spec,
+                category
+            });
+        } else {
+            console.warn(`Row ${i+1} skipped: no item type/name`, row);
+        }
+    }
+    console.log(`Parsed ${transactions.length} transactions (missing quantities defaulted to 1 where needed)`);
+    return transactions;
+}
 
     function computeCategoryStock(transactions) {
         const map = new Map();
