@@ -41,11 +41,6 @@
         .stock-high { background: #dff0ec; color: #1e6f5c; }
         .stock-medium { background: #fff3e0; color: #e67e22; }
         .stock-low { background: #ffe6e5; color: #c24438; }
-        .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid #ddd; }
-        .color-list, .spec-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-        .color-tag, .spec-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
-        .photo-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 10px; cursor: pointer; background: #f5f5f5; border: 1px solid #e0e0e0; }
-        .photo-thumb:hover { transform: scale(1.1); }
         .badge-action { display: inline-block; padding: 4px 12px; border-radius: 40px; font-weight: 600; font-size: 0.75rem; }
         .badge-in { background: #dff0ec; color: #1e6f5c; }
         .badge-out { background: #ffe6e5; color: #c24438; }
@@ -61,6 +56,12 @@
         .refresh-note:hover { color: #0e5243; }
         .sort-toggle { display: inline-flex; align-items: center; gap: 6px; background: #e0f2ef; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
         .sort-toggle:hover { background: #c8e6e0; }
+        /* Additional styles for transaction table colours/specs */
+        .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid #ddd; }
+        .color-list, .spec-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+        .color-tag, .spec-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
+        .photo-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 10px; cursor: pointer; background: #f5f5f5; border: 1px solid #e0e0e0; }
+        .photo-thumb:hover { transform: scale(1.1); }
         @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } .note-right, .sort-toggle { font-size: 0.65rem; } }
     </style>
 </head>
@@ -100,7 +101,7 @@
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Tab -->
+    <!-- Stock Tab (simplified columns) -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -113,13 +114,24 @@
         </div>
         <div class="table-wrapper">
             <table id="stockTable">
-                <thead><tr><th>No.</th><th>Category</th><th>Balance</th><th>Colors</th><th>Sizes / Specs</th><th>Total IN</th><th>Total OUT</th><th>Status</th><th>Sample Photo</th></tr></thead>
-                <tbody id="stockTableBody"><tr><td colspan="9" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Category</th>
+                        <th>Balance</th>
+                        <th>Total IN</th>
+                        <th>Total OUT</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                    <tr><td colspan="6" class="loading-placeholder">Loading...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Transactions Tab -->
+    <!-- Transactions Tab (unchanged) -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -140,8 +152,15 @@
         </div>
         <div class="table-wrapper">
             <table id="transactionTable">
-                <thead><tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></td></tbody>
+                <thead>
+                    <tr>
+                        <th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th>
+                        <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTableBody">
+                    <tr><td colspan="11" class="loading-placeholder">Loading...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -169,7 +188,6 @@
     // Parse DD/MM/YYYY HH:MM:SS to Date object for sorting
     function parseDateTime(timestamp) {
         if (!timestamp) return null;
-        // Matches: DD/MM/YYYY HH:MM:SS or DD/MM/YYYY
         const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
         if (match) {
             const day = parseInt(match[1]);
@@ -183,7 +201,6 @@
             }
             return new Date(year, month, day, hour, minute, second);
         }
-        // Fallback
         return new Date(timestamp);
     }
 
@@ -290,27 +307,14 @@
                 category: cat,
                 totalIn: 0,
                 totalOut: 0,
-                balance: 0,
-                colors: new Set(),
-                sizeSpecs: new Set(),
-                lastPhoto: null,
-                lastTimestamp: null
+                balance: 0
             };
             if (t.action === "IN") {
                 existing.totalIn += t.qty;
                 existing.balance += t.qty;
-                if (t.color) existing.colors.add(t.color);
-                if (t.sizeSpec) existing.sizeSpecs.add(t.sizeSpec);
-                if (t.photoUrl && !existing.lastPhoto) existing.lastPhoto = t.photoUrl;
             } else {
                 existing.totalOut += t.qty;
                 existing.balance -= t.qty;
-                if (t.color) existing.colors.add(t.color);
-                if (t.sizeSpec) existing.sizeSpecs.add(t.sizeSpec);
-            }
-            if (!existing.lastTimestamp || parseDateTime(t.timestamp) > parseDateTime(existing.lastTimestamp)) {
-                existing.lastTimestamp = t.timestamp;
-                if (t.photoUrl) existing.lastPhoto = t.photoUrl;
             }
             map.set(cat, existing);
         }
@@ -326,7 +330,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td><tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="6" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...</td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=316845579";
@@ -433,7 +437,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="6">No stock data</td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -443,32 +447,21 @@
             if (cat.balance <= 5) cls = 'stock-low';
             else if (cat.balance <= 10) cls = 'stock-medium';
             row.insertCell(2).innerHTML = `<span class="stock-badge ${cls}">${cat.balance}</span>`;
-            const colorCell = row.insertCell(3);
-            if (cat.colors.size) {
-                colorCell.innerHTML = `<div class="color-list">${Array.from(cat.colors).map(c => `<span class="color-tag"><span class="color-dot" style="background:${getColorStyle(c)}"></span>${c}</span>`).join('')}</div>`;
-            } else { colorCell.innerHTML = '—'; }
-            const specCell = row.insertCell(4);
-            if (cat.sizeSpecs.size) {
-                specCell.innerHTML = `<div class="spec-list">${Array.from(cat.sizeSpecs).map(s => `<span class="spec-tag">📏 ${s}</span>`).join('')}</div>`;
-            } else { specCell.innerHTML = '—'; }
-            row.insertCell(5).innerText = cat.totalIn;
-            row.insertCell(6).innerText = cat.totalOut;
+            row.insertCell(3).innerText = cat.totalIn;
+            row.insertCell(4).innerText = cat.totalOut;
             let statusText = '', statusColor = '';
             if (cat.balance <= 0) { statusText = '⚠️ OUT'; statusColor = '#e74c3c'; }
             else if (cat.balance < 5) { statusText = '🔴 CRITICAL'; statusColor = '#e74c3c'; }
             else if (cat.balance < 10) { statusText = '🟠 LOW'; statusColor = '#e67e22'; }
             else { statusText = '✅ OK'; statusColor = '#1e6f5c'; }
-            row.insertCell(7).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
-            const photoCell = row.insertCell(8);
-            if (cat.lastPhoto) photoCell.innerHTML = `<img class="photo-thumb" src="${cat.lastPhoto}" onclick="showModal('${cat.lastPhoto}')" onerror="this.style.display='none'">`;
-            else photoCell.innerHTML = '—';
+            row.insertCell(5).innerHTML = `<span style="color:${statusColor}; font-weight:600">${statusText}</span>`;
         }
     }
     
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions<\/td></td>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions</td></tr>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
@@ -534,7 +527,6 @@
                        (t.color && t.color.toLowerCase().includes(searchTerm)) ||
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
-            // Relevance sort
             filtered.sort((a, b) => {
                 const aName = a.name && a.name.toLowerCase().includes(searchTerm);
                 const bName = b.name && b.name.toLowerCase().includes(searchTerm);
@@ -545,7 +537,6 @@
                 return 0;
             });
         } else {
-            // Date sort using parseDateTime (DD/MM/YYYY with time)
             filtered.sort((a, b) => {
                 const dateA = parseDateTime(a.timestamp);
                 const dateB = parseDateTime(b.timestamp);
