@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Red Tag Summary </title>
+    <title>Red Tag Store – Stock by Category (with Colour & Spec)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -59,14 +59,16 @@
         .note-right { margin-left: auto; font-size: 0.75rem; color: #e67e22; background: #fff3e0; padding: 6px 12px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px; }
         .refresh-note { cursor: pointer; color: #1e6f5c; font-weight: 600; text-decoration: underline; }
         .refresh-note:hover { color: #0e5243; }
-        @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } .note-right { font-size: 0.65rem; } }
+        .sort-toggle { display: inline-flex; align-items: center; gap: 6px; background: #e0f2ef; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
+        .sort-toggle:hover { background: #c8e6e0; }
+        @media (max-width: 768px) { th, td { font-size: 0.72rem; padding: 8px 6px; } .photo-thumb { width: 35px; height: 35px; } .note-right, .sort-toggle { font-size: 0.65rem; } }
     </style>
 </head>
 <body>
 <div class="dashboard">
     <div class="header">
         <div>
-            <h1><i class="fas fa-tag"></i> Red Tag Summary</h1>
+            <h1><i class="fas fa-tag"></i> Red Tag Store · Stock by Category</h1>
             <div class="last-updated" id="lastUpdated">Loading data...</div>
         </div>
         <button class="refresh-btn" onclick="loadAllData()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -82,7 +84,7 @@
 
     <!-- Charts -->
     <div class="chart-row">
-        <div class="chart-card"><h3>◔ Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
+        <div class="chart-card"><h3>🥧 Stock Distribution by Category</h3><canvas id="pieChart"></canvas></div>
         <div class="chart-card"><h3>📆 Monthly IN/OUT Activity</h3><canvas id="monthlyChart"></canvas></div>
     </div>
 
@@ -117,12 +119,18 @@
         </div>
     </div>
 
-    <!-- Transactions Tab with clickable refresh icon in note -->
+    <!-- Transactions Tab with Latest First toggle + Year filter -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
             <input type="text" id="searchInput" placeholder="🔍 Search by name, department, item, colour, spec..." onkeyup="filterTransactionTable()">
             <select id="categoryFilter"><option value="ALL">All Categories</option></select>
+            <select id="yearFilter" onchange="filterTransactionTable()">
+                <option value="ALL">All Years</option>
+            </select>
+            <div class="sort-toggle" onclick="toggleSortOrder()" id="sortToggleBtn">
+                <i class="fas fa-sort-amount-down"></i> <span id="sortLabel">Latest First</span>
+            </div>
             <div class="note-right">
                 <i class="fas fa-info-circle"></i> If image not loaded, 
                 <span class="refresh-note" onclick="loadAllData()">
@@ -133,7 +141,7 @@
         <div class="table-wrapper">
             <table id="transactionTable">
                 <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr></thead>
-                <tbody id="transactionTableBody"><td><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -145,11 +153,12 @@
 </div>
 
 <script>
-    // (Full JavaScript remains exactly the same as the previous working version)
     let allTransactions = [];
     let categoryStock = [];
     let pieChart, monthlyChart;
+    let sortDescending = true; // true = latest first (newest on top)
 
+    // Helper: find column index case-insensitively
     function findColumn(headers, possibleNames) {
         for (let name of possibleNames) {
             let idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
@@ -282,18 +291,20 @@
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
+    // Fallback sample data
     const sampleTransactions = [
         { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
         { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
         { timestamp: "2026-05-11 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
-        { timestamp: "2026-06-03 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" }
+        { timestamp: "2026-06-03 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
+        { timestamp: "2025-05-08 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></table>';
         allTransactions = [];
-        const SHEET1 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
-        const SHEET2 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=316845579";
+        const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
+        const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
         let loaded = false;
         try {
             const [resp1, resp2] = await Promise.all([fetch(SHEET1).catch(()=>null), fetch(SHEET2).catch(()=>null)]);
@@ -320,7 +331,6 @@
                 if (!unique.has(key)) unique.set(key, t);
             }
             allTransactions = Array.from(unique.values());
-            allTransactions.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
             document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
         }
         
@@ -343,10 +353,43 @@
             document.getElementById('alertPanel').style.display = 'none';
         }
         
+        // Populate year filter
+        populateYearFilter();
+        
         renderStockTable(categoryStock);
-        renderTransactionTable(allTransactions);
+        filterTransactionTable(); // This will apply sorting and year filter
         populateCategoryFilter();
         renderCharts();
+    }
+    
+    function populateYearFilter() {
+        const years = new Set();
+        allTransactions.forEach(t => {
+            if (t.timestamp) {
+                const year = new Date(t.timestamp).getFullYear();
+                if (!isNaN(year)) years.add(year);
+            }
+        });
+        const sortedYears = Array.from(years).sort((a,b) => b - a);
+        const yearSelect = document.getElementById('yearFilter');
+        yearSelect.innerHTML = '<option value="ALL">All Years</option>';
+        sortedYears.forEach(year => {
+            yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+        });
+    }
+    
+    function toggleSortOrder() {
+        sortDescending = !sortDescending;
+        const sortLabel = document.getElementById('sortLabel');
+        const sortBtn = document.getElementById('sortToggleBtn');
+        if (sortDescending) {
+            sortLabel.innerText = 'Latest First';
+            sortBtn.innerHTML = '<i class="fas fa-sort-amount-down"></i> <span id="sortLabel">Latest First</span>';
+        } else {
+            sortLabel.innerText = 'Oldest First';
+            sortBtn.innerHTML = '<i class="fas fa-sort-amount-up"></i> <span id="sortLabel">Oldest First</span>';
+        }
+        filterTransactionTable();
     }
     
     function getColorStyle(colorName) {
@@ -359,7 +402,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td><tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -435,14 +478,21 @@
         renderStockTable(filtered);
     }
     
+    // Enhanced search with sorting and year filter
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
         const category = document.getElementById('categoryFilter').value;
+        const yearFilter = document.getElementById('yearFilter').value;
         
         let filtered = allTransactions.filter(t => {
             if (action !== 'ALL' && t.action !== action) return false;
             if (category !== 'ALL' && t.category !== category) return false;
+            // Year filter
+            if (yearFilter !== 'ALL' && t.timestamp) {
+                const year = new Date(t.timestamp).getFullYear();
+                if (year != yearFilter) return false;
+            }
             return true;
         });
         
@@ -455,6 +505,7 @@
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
             
+            // Sort by search relevance: Name > Item Type
             filtered.sort((a, b) => {
                 const aName = a.name.toLowerCase().includes(searchTerm);
                 const bName = b.name.toLowerCase().includes(searchTerm);
@@ -463,6 +514,14 @@
                 const bType = b.itemType.toLowerCase().includes(searchTerm);
                 if (aType !== bType) return aType ? -1 : 1;
                 return 0;
+            });
+        } else {
+            // Apply date sorting (no search term)
+            filtered.sort((a, b) => {
+                const dateA = new Date(a.timestamp);
+                const dateB = new Date(b.timestamp);
+                if (sortDescending) return dateB - dateA;
+                else return dateA - dateB;
             });
         }
         
