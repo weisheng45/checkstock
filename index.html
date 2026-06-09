@@ -56,7 +56,7 @@
         .refresh-note:hover { color: #0e5243; }
         .sort-toggle { display: inline-flex; align-items: center; gap: 6px; background: #e0f2ef; padding: 6px 12px; border-radius: 30px; cursor: pointer; }
         .sort-toggle:hover { background: #c8e6e0; }
-        /* Additional styles for transaction table colours/specs */
+        /* Transaction table colour/spec styles */
         .color-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid #ddd; }
         .color-list, .spec-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
         .color-tag, .spec-tag { background: #f0f0f0; padding: 2px 8px; border-radius: 20px; font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px; }
@@ -101,7 +101,7 @@
         <button class="tab-btn" data-tab="transactions">📋 Transactions (with Colour & Spec)</button>
     </div>
 
-    <!-- Stock Tab (simplified columns) -->
+    <!-- Stock Tab (simplified) -->
     <div id="stockTab" class="tab-content active">
         <div class="filters">
             <input type="text" id="stockSearch" placeholder="🔍 Search category..." onkeyup="filterStockTable()">
@@ -115,18 +115,9 @@
         <div class="table-wrapper">
             <table id="stockTable">
                 <thead>
-                    <tr>
-                        <th>No.</th>
-                        <th>Category</th>
-                        <th>Balance</th>
-                        <th>Total IN</th>
-                        <th>Total OUT</th>
-                        <th>Status</th>
-                    </tr>
+                    <tr><th>No.</th><th>Category</th><th>Balance</th><th>Total IN</th><th>Total OUT</th><th>Status</th></tr>
                 </thead>
-                <tbody id="stockTableBody">
-                    <tr><td colspan="6" class="loading-placeholder">Loading...</td></tr>
-                </tbody>
+                <tbody id="stockTableBody"><tr><td colspan="6" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -153,14 +144,9 @@
         <div class="table-wrapper">
             <table id="transactionTable">
                 <thead>
-                    <tr>
-                        <th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th>
-                        <th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th>
-                    </tr>
+                    <tr><th>No.</th><th>Date & Time</th><th>Name</th><th>Dept</th><th>Action</th><th>Item Type</th><th>Qty</th><th>Color</th><th>Size / Spec</th><th>Category</th><th>Photo</th></tr>
                 </thead>
-                <tbody id="transactionTableBody">
-                    <tr><td colspan="11" class="loading-placeholder">Loading...</td></tr>
-                </tbody>
+                <tbody id="transactionTableBody"><tr><td colspan="11" class="loading-placeholder">Loading...<\/td></tr></tbody>
             </table>
         </div>
     </div>
@@ -185,7 +171,7 @@
         return -1;
     }
 
-    // Parse DD/MM/YYYY HH:MM:SS to Date object for sorting
+    // Parse DD/MM/YYYY HH:MM:SS
     function parseDateTime(timestamp) {
         if (!timestamp) return null;
         const match = timestamp.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2}):(\d{1,2}))?/);
@@ -323,27 +309,19 @@
 
     const sampleTransactions = [
         { timestamp: "10/04/2026 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
-        { timestamp: "15/04/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
-        { timestamp: "11/05/2026 15:14:59", name: "Alfi", department: "Q&E", action: "IN", itemType: "Spray Container", qty: 1, photoUrl: null, color: "Pink", sizeSpec: "Round box", category: "Furniture" },
-        { timestamp: "03/06/2026 16:23:43", name: "Aqib", department: "LEAN", action: "OUT", itemType: "Stop Push Button", qty: 1, photoUrl: null, color: "ROYAL IVORY", sizeSpec: "70 mm x 75 mm x 90 mm", category: "Electrical" },
-        { timestamp: "08/05/2025 16:13:05", name: "Grey", department: "LEAN", action: "IN", itemType: "CC1 b17 cp17 mov", qty: 8, photoUrl: null, color: "Silver", sizeSpec: "D10 X L127", category: "Production Tools" }
+        { timestamp: "15/04/2026 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" }
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="6" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...</td></tr>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="6" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheet...<\/td></tr>';
         allTransactions = [];
-        const SHEET1 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
-        const SHEET2 = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=316845579";
+        // Only one sheet – your main sheet
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/1h9BZHvzaOpPgtVWfw81eWFQqG9btCM8Z1fQPx9-jPPA/export?format=csv&gid=878903588";
         let loaded = false;
         try {
-            const [resp1, resp2] = await Promise.all([fetch(SHEET1).catch(()=>null), fetch(SHEET2).catch(()=>null)]);
-            if (resp1 && resp1.ok) {
-                const data = await resp1.text();
-                const parsed = parseCSVToTransactions(data);
-                if (parsed.length) { allTransactions.push(...parsed); loaded = true; }
-            }
-            if (resp2 && resp2.ok) {
-                const data = await resp2.text();
+            const response = await fetch(SHEET_URL).catch(()=>null);
+            if (response && response.ok) {
+                const data = await response.text();
                 const parsed = parseCSVToTransactions(data);
                 if (parsed.length) { allTransactions.push(...parsed); loaded = true; }
             }
@@ -352,7 +330,7 @@
         if (!loaded || allTransactions.length === 0) {
             console.log("Using sample data");
             allTransactions = sampleTransactions;
-            document.getElementById('lastUpdated').innerHTML = "⚠️ Using sample data. Please publish your Google Sheets as CSV.";
+            document.getElementById('lastUpdated').innerHTML = "⚠️ Using sample data. Please publish your Google Sheet as CSV.";
         } else {
             const unique = new Map();
             for (const t of allTransactions) {
@@ -437,7 +415,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="6">No stock data</td></tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="6">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -461,7 +439,7 @@
     function renderTransactionTable(transactions) {
         const tbody = document.getElementById('transactionTableBody');
         tbody.innerHTML = '';
-        if (!transactions.length) { tbody.innerHTML = '<tr><td colspan="11">No transactions</td></tr>'; return; }
+        if (!transactions.length) { tbody.innerHTML = '<td><td colspan="11">No transactions<\/td></tr>'; return; }
         for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const row = tbody.insertRow();
