@@ -119,7 +119,7 @@
         </div>
     </div>
 
-    <!-- Transactions Tab with Latest First toggle + Year filter -->
+    <!-- Transactions Tab -->
     <div id="transactionsTab" class="tab-content">
         <div class="filters">
             <select id="actionFilter"><option value="ALL">All Actions</option><option value="IN">IN Only</option><option value="OUT">OUT Only</option></select>
@@ -156,9 +156,8 @@
     let allTransactions = [];
     let categoryStock = [];
     let pieChart, monthlyChart;
-    let sortDescending = true; // true = latest first (newest on top)
+    let sortDescending = true;
 
-    // Helper: find column index case-insensitively
     function findColumn(headers, possibleNames) {
         for (let name of possibleNames) {
             let idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
@@ -291,7 +290,6 @@
         return Array.from(map.values()).filter(c => c.balance !== 0).sort((a,b) => b.balance - a.balance);
     }
 
-    // Fallback sample data
     const sampleTransactions = [
         { timestamp: "2026-04-10 16:20:31", name: "Risya", department: "DC", action: "IN", itemType: "Rack", qty: 1, photoUrl: null, color: "Royal Ivory", sizeSpec: "N/A", category: "Furniture" },
         { timestamp: "2026-04-15 14:54:17", name: "aqib", department: "LEAN", action: "IN", itemType: "CLAMP", qty: 1, photoUrl: null, color: "SILVER", sizeSpec: "", category: "Mechanical" },
@@ -301,7 +299,7 @@
     ];
 
     async function loadAllData() {
-        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></table>';
+        document.getElementById('stockTableBody').innerHTML = '<tr><td colspan="9" class="loading-placeholder"><i class="fas fa-spinner fa-pulse"></i> Loading from sheets...<\/td></tr>';
         allTransactions = [];
         const SHEET1 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=588416481";
         const SHEET2 = "https://docs.google.com/spreadsheets/d/1JagOTXUhyd82PCewfXg9w05Qa_ZSGBkf/export?format=csv&gid=1922926162";
@@ -334,6 +332,9 @@
             document.getElementById('lastUpdated').innerHTML = `✅ ${new Date().toLocaleString()} · ${allTransactions.length} transactions`;
         }
         
+        // Apply default sort (latest first) to allTransactions
+        allTransactions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
         categoryStock = computeCategoryStock(allTransactions);
         
         const totalStock = categoryStock.reduce((s,c) => s + c.balance, 0);
@@ -353,29 +354,45 @@
             document.getElementById('alertPanel').style.display = 'none';
         }
         
-        // Populate year filter
-        populateYearFilter();
-        
         renderStockTable(categoryStock);
-        filterTransactionTable(); // This will apply sorting and year filter
+        populateYearFilter();  // Populate years BEFORE rendering transactions
         populateCategoryFilter();
+        filterTransactionTable();  // Now render transactions with all filters
         renderCharts();
     }
     
     function populateYearFilter() {
         const years = new Set();
-        allTransactions.forEach(t => {
+        for (const t of allTransactions) {
             if (t.timestamp) {
-                const year = new Date(t.timestamp).getFullYear();
-                if (!isNaN(year)) years.add(year);
+                // Try parsing the timestamp - handle different formats
+                let date;
+                // Check if timestamp is a number (Excel serial) or string
+                if (typeof t.timestamp === 'number') {
+                    date = new Date((t.timestamp - 25569) * 86400 * 1000);
+                } else {
+                    date = new Date(t.timestamp);
+                }
+                if (!isNaN(date.getTime())) {
+                    const year = date.getFullYear();
+                    if (year && year > 2000 && year < 2100) {  // Valid year range
+                        years.add(year);
+                    }
+                }
             }
-        });
-        const sortedYears = Array.from(years).sort((a,b) => b - a);
+        }
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
         const yearSelect = document.getElementById('yearFilter');
         yearSelect.innerHTML = '<option value="ALL">All Years</option>';
         sortedYears.forEach(year => {
             yearSelect.innerHTML += `<option value="${year}">${year}</option>`;
         });
+        
+        // If no years found, add current year as fallback
+        if (sortedYears.length === 0) {
+            const currentYear = new Date().getFullYear();
+            yearSelect.innerHTML += `<option value="${currentYear}">${currentYear}</option>`;
+        }
     }
     
     function toggleSortOrder() {
@@ -402,7 +419,7 @@
     function renderStockTable(items) {
         const tbody = document.getElementById('stockTableBody');
         tbody.innerHTML = '';
-        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td><tr>'; return; }
+        if (!items.length) { tbody.innerHTML = '<tr><td colspan="9">No stock data<\/td></tr>'; return; }
         for (let i = 0; i < items.length; i++) {
             const cat = items[i];
             const row = tbody.insertRow();
@@ -442,7 +459,19 @@
             const t = transactions[i];
             const row = tbody.insertRow();
             row.insertCell(0).innerText = i + 1;
-            row.insertCell(1).innerText = t.timestamp ? t.timestamp.replace('T',' ').substring(0,16) : 'Unknown';
+            // Format date nicely
+            let dateStr = 'Unknown';
+            if (t.timestamp) {
+                try {
+                    const d = new Date(t.timestamp);
+                    if (!isNaN(d.getTime())) {
+                        dateStr = d.toLocaleString('en-MY', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    } else {
+                        dateStr = t.timestamp.substring(0, 16).replace('T', ' ');
+                    }
+                } catch(e) { dateStr = t.timestamp.substring(0, 16); }
+            }
+            row.insertCell(1).innerText = dateStr;
             row.insertCell(2).innerText = t.name || '-';
             row.insertCell(3).innerText = t.department || '-';
             row.insertCell(4).innerHTML = `<span class="badge-action ${t.action==='IN'?'badge-in':'badge-out'}">${t.action}</span>`;
@@ -478,48 +507,67 @@
         renderStockTable(filtered);
     }
     
-    // Enhanced search with sorting and year filter
     function filterTransactionTable() {
         const action = document.getElementById('actionFilter').value;
         const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
         const category = document.getElementById('categoryFilter').value;
         const yearFilter = document.getElementById('yearFilter').value;
         
-        let filtered = allTransactions.filter(t => {
-            if (action !== 'ALL' && t.action !== action) return false;
-            if (category !== 'ALL' && t.category !== category) return false;
-            // Year filter
-            if (yearFilter !== 'ALL' && t.timestamp) {
-                const year = new Date(t.timestamp).getFullYear();
-                if (year != yearFilter) return false;
-            }
-            return true;
-        });
+        let filtered = [...allTransactions];  // Start with a copy
         
+        // Apply action filter
+        if (action !== 'ALL') {
+            filtered = filtered.filter(t => t.action === action);
+        }
+        
+        // Apply category filter
+        if (category !== 'ALL') {
+            filtered = filtered.filter(t => t.category === category);
+        }
+        
+        // Apply year filter
+        if (yearFilter !== 'ALL') {
+            filtered = filtered.filter(t => {
+                if (!t.timestamp) return false;
+                try {
+                    const date = new Date(t.timestamp);
+                    if (!isNaN(date.getTime())) {
+                        return date.getFullYear().toString() === yearFilter;
+                    }
+                    // Try parsing timestamp string
+                    const yearMatch = t.timestamp.match(/(\d{4})/);
+                    return yearMatch && yearMatch[1] === yearFilter;
+                } catch(e) { return false; }
+            });
+        }
+        
+        // Apply search filter
         if (searchTerm !== "") {
             filtered = filtered.filter(t => {
-                return t.name.toLowerCase().includes(searchTerm) ||
-                       t.department.toLowerCase().includes(searchTerm) ||
-                       t.itemType.toLowerCase().includes(searchTerm) ||
+                return (t.name && t.name.toLowerCase().includes(searchTerm)) ||
+                       (t.department && t.department.toLowerCase().includes(searchTerm)) ||
+                       (t.itemType && t.itemType.toLowerCase().includes(searchTerm)) ||
                        (t.color && t.color.toLowerCase().includes(searchTerm)) ||
                        (t.sizeSpec && t.sizeSpec.toLowerCase().includes(searchTerm));
             });
             
-            // Sort by search relevance: Name > Item Type
+            // Sort by relevance: Name matches first, then Item Type
             filtered.sort((a, b) => {
-                const aName = a.name.toLowerCase().includes(searchTerm);
-                const bName = b.name.toLowerCase().includes(searchTerm);
+                const aName = a.name && a.name.toLowerCase().includes(searchTerm);
+                const bName = b.name && b.name.toLowerCase().includes(searchTerm);
                 if (aName !== bName) return aName ? -1 : 1;
-                const aType = a.itemType.toLowerCase().includes(searchTerm);
-                const bType = b.itemType.toLowerCase().includes(searchTerm);
+                const aType = a.itemType && a.itemType.toLowerCase().includes(searchTerm);
+                const bType = b.itemType && b.itemType.toLowerCase().includes(searchTerm);
                 if (aType !== bType) return aType ? -1 : 1;
                 return 0;
             });
         } else {
-            // Apply date sorting (no search term)
+            // Apply date sorting when no search term
             filtered.sort((a, b) => {
                 const dateA = new Date(a.timestamp);
                 const dateB = new Date(b.timestamp);
+                if (isNaN(dateA.getTime())) return 1;
+                if (isNaN(dateB.getTime())) return -1;
                 if (sortDescending) return dateB - dateA;
                 else return dateA - dateB;
             });
@@ -541,7 +589,7 @@
         const monthMap = new Map();
         allTransactions.forEach(t => {
             let d = new Date(t.timestamp);
-            if (!isNaN(d)) {
+            if (!isNaN(d.getTime())) {
                 let ym = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
                 let cur = monthMap.get(ym) || { in:0, out:0 };
                 if (t.action === 'IN') cur.in += t.qty;
@@ -570,6 +618,9 @@
         document.getElementById(`${tabId}Tab`).classList.add('active');
         const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.dataset.tab === tabId);
         if (activeBtn) activeBtn.classList.add('active');
+        if (tabId === 'transactions') {
+            filterTransactionTable();  // Refresh when switching to transactions tab
+        }
     }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -577,6 +628,7 @@
     });
     document.getElementById('actionFilter').addEventListener('change', filterTransactionTable);
     document.getElementById('categoryFilter').addEventListener('change', filterTransactionTable);
+    document.getElementById('yearFilter').addEventListener('change', filterTransactionTable);
     document.getElementById('searchInput').addEventListener('keyup', filterTransactionTable);
     
     window.showModal = (url) => {
